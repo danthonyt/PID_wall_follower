@@ -2,7 +2,7 @@ module pwm_tb;
 
   // Parameters
   localparam  R = 8;
-  localparam CLK_PERIOD = 5;
+  time CLK_PERIOD = 10ns;
 
   //Ports
   logic clk;
@@ -22,14 +22,20 @@ module pwm_tb;
     .pwm_out(pwm_out)
   );
 
-always #(CLK_PERIOD)  clk = ! clk ;
+
+initial begin
+  clk = 0;
+  forever begin
+    #(CLK_PERIOD/2)  clk = ~ clk ;
+  end
+end
 
 initial begin
   duty = 128;
-  dvsr = 1;
+  dvsr = 0; // 390.625 khz
   reset = 1;
   #(CLK_PERIOD*3) reset = 0;
-  #(CLK_PERIOD*2^R + 10);
+  #(2560ns + 15ns) 
   $finish;
 end
 endmodule

@@ -1,0 +1,4 @@
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/src/pwm.sv" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module pwm
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/sim/pwm_tb.sv" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module pwm_tb
