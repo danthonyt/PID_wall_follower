@@ -107,3 +107,4 @@ close_sim
 launch_simulation
 open_wave_config /home/dtorres/Documents/work/PID_maze_navigator/vivado/pwm/pwm_tb_behav.wcfg
 source pwm_tb.tcl
+close_sim

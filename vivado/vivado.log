@@ -1494,3 +1494,7 @@ source pwm_tb.tcl
 $finish called at time : 2605 ns : File "/home/dtorres/Documents/work/PID_maze_navigator/sim/pwm_tb.sv" Line 39
 INFO: [USF-XSim-96] XSim completed. Design snapshot 'pwm_tb_behav' loaded.
 INFO: [USF-XSim-97] XSim simulation ran for all
+close_sim
+INFO: [Simtcl 6-16] Simulation closed
+exit
+INFO: [Common 17-206] Exiting Vivado at Mon Jan 27 15:30:54 2025...
