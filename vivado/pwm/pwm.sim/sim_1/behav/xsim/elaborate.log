@@ -1,7 +1,7 @@
 Vivado Simulator v2024.2.0
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
 Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
-Running: /opt/Xilinx/Vivado/2024.2/bin/unwrapped/lnx64.o/xelab --incr --debug typical --relax --mt 8 -L xil_defaultlib -L uvm -L unisims_ver -L unimacro_ver -L secureip --snapshot pwm_tb_behav xil_defaultlib.pwm_tb xil_defaultlib.glbl -log elaborate.log 
+Running: /opt/Xilinx/Vivado/2024.2/bin/unwrapped/lnx64.o/xelab --incr --debug typical --relax --mt 8 -L xil_defaultlib -L uvm -L unisims_ver -L unimacro_ver -L secureip -L xpm --snapshot tachometer_interface_tb_behav xil_defaultlib.tachometer_interface_tb xil_defaultlib.glbl -log elaborate.log 
 Using 8 slave threads.
 Starting static elaboration
 Pass Through NonSizing Optimizer
@@ -11,7 +11,7 @@ WARNING: [XSIM 43-4100] "/home/dtorres/Documents/work/PID_maze_navigator/vivado/
 WARNING: [XSIM 43-4100] "/home/dtorres/Documents/work/PID_maze_navigator/vivado/pwm/pwm.sim/sim_1/behav/xsim/glbl.v" Line 6. Module glbl has a timescale but at least one module in design doesn't have timescale.
 Completed simulation data flow analysis
 Time Resolution for simulation is 1ps
-Compiling module xil_defaultlib.pwm(R=16)
-Compiling module xil_defaultlib.pwm_tb
+Compiling module xil_defaultlib.tachometer_interface
+Compiling module xil_defaultlib.tachometer_interface_tb
 Compiling module xil_defaultlib.glbl
-Built simulation snapshot pwm_tb_behav
+Built simulation snapshot tachometer_interface_tb_behav

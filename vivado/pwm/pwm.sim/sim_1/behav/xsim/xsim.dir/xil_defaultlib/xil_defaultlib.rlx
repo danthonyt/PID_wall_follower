@@ -2,6 +2,6 @@
 2020.2
 Nov  8 2024
 22:36:55
-/home/dtorres/Documents/work/PID_maze_navigator/sim/pwm_tb.sv,1738891701,systemVerilog,,,,pwm_tb,,uvm,,,,,,
-/home/dtorres/Documents/work/PID_maze_navigator/src/pwm.sv,1738018267,systemVerilog,,/home/dtorres/Documents/work/PID_maze_navigator/sim/pwm_tb.sv,,pwm,,uvm,,,,,,
+/home/dtorres/Documents/work/PID_maze_navigator/sim/tachometer_interface_tb.sv,1738909396,systemVerilog,,,,tachometer_interface_tb,,uvm,../../../../pwm.ip_user_files/ipstatic,,,,,
+/home/dtorres/Documents/work/PID_maze_navigator/src/tachometer_interface.sv,1738908747,systemVerilog,,/home/dtorres/Documents/work/PID_maze_navigator/sim/tachometer_interface_tb.sv,,tachometer_interface,,uvm,../../../../pwm.ip_user_files/ipstatic,,,,,
 /home/dtorres/Documents/work/PID_maze_navigator/vivado/pwm/pwm.sim/sim_1/behav/xsim/glbl.v,1724786425,verilog,,,,glbl,,uvm,,,,,,
