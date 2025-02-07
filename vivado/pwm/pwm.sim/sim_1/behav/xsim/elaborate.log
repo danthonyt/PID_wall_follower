@@ -11,7 +11,7 @@ WARNING: [XSIM 43-4100] "/home/dtorres/Documents/work/PID_maze_navigator/vivado/
 WARNING: [XSIM 43-4100] "/home/dtorres/Documents/work/PID_maze_navigator/vivado/pwm/pwm.sim/sim_1/behav/xsim/glbl.v" Line 6. Module glbl has a timescale but at least one module in design doesn't have timescale.
 Completed simulation data flow analysis
 Time Resolution for simulation is 1ps
-Compiling module xil_defaultlib.pwm(R=8)
+Compiling module xil_defaultlib.pwm(R=16)
 Compiling module xil_defaultlib.pwm_tb
 Compiling module xil_defaultlib.glbl
 Built simulation snapshot pwm_tb_behav

@@ -11,19 +11,18 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
-      <ZoomEndTime time="5,152.001 ns"></ZoomEndTime>
-      <Cursor1Time time="5,152.000 ns"></Cursor1Time>
+      <ZoomStartTime time="0.018289167 ms"></ZoomStartTime>
+      <ZoomEndTime time="0.024594168 ms"></ZoomEndTime>
+      <Cursor1Time time="0.019340000 ms"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="276"></NameColumnWidth>
-      <ValueColumnWidth column_width="70"></ValueColumnWidth>
+      <ValueColumnWidth column_width="62"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="7" />
    <wave_markers>
-      <marker label="" time="5160000" />
-      <marker label="" time="2595000" />
-      <marker label="" time="4595000" />
+      <marker label="" time="28000" />
+      <marker label="" time="9961341833" />
    </wave_markers>
    <wvobject type="logic" fp_name="/pwm_tb/clk">
       <obj_property name="ElementShortName">clk</obj_property>
@@ -34,8 +33,8 @@
       <obj_property name="ObjectShortName">reset</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/pwm_tb/duty">
-      <obj_property name="ElementShortName">duty[8:0]</obj_property>
-      <obj_property name="ObjectShortName">duty[8:0]</obj_property>
+      <obj_property name="ElementShortName">duty[16:0]</obj_property>
+      <obj_property name="ObjectShortName">duty[16:0]</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/pwm_tb/dvsr">

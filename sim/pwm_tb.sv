@@ -1,8 +1,8 @@
 module pwm_tb;
 
   // Parameters
-  localparam  R = 8;
-  time CLK_PERIOD = 10ns;
+  localparam  R = 16;
+  time CLK_PERIOD = 8ns;
 
   //Ports
   logic clk;
@@ -29,13 +29,13 @@ initial begin
     #(CLK_PERIOD/2)  clk = ~ clk ;
   end
 end
-
+// divisor of 18 is approx 100 hz with R = 16
 initial begin
   duty = 128;
-  dvsr = 0; // 390.625 khz
+  dvsr = 18; // approx 100 Hz about 100.6 Hz
   reset = 1;
   #(CLK_PERIOD*3) reset = 0;
-  #(2560ns + 15ns) 
+  #(10ms) 
   $finish;
 end
 endmodule
