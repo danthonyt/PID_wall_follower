@@ -2,8 +2,8 @@ module navigation_fsm (
   input  logic        clk_in               ,
   input  logic        reset_in             ,
   // need to add ir sensor inputs
-  input  logic        right_ir             ,
-  input  logic        left_ir              ,
+  input  logic [15:0] right_ir             ,
+  input  logic [15:0] left_ir              ,
   input  logic        forward_ir           ,
   output logic [20:0] rpm_left_setpoint    , // desired rpm of left motor
   output logic [20:0] rpm_right_setpoint   , // desired rpm of right motor
@@ -47,7 +47,7 @@ module navigation_fsm (
     begin
       unique case (state)
         //prioritize right, then forward, then left, else turn around
-        left_motor_en = 1;
+        left_motor_en  = 1;
         right_motor_en = 1;
         FORWARD :
           begin
