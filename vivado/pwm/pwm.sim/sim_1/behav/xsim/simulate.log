@@ -1,0 +1,4 @@
+Time resolution is 1 ps
+WARNING: 0ns : none of the conditions were true for unique case from File:/home/dtorres/Documents/work/PID_maze_navigator/src/tachometer_interface.sv:22
+WARNING: 0ns : none of the conditions were true for unique case from File:/home/dtorres/Documents/work/PID_maze_navigator/src/tachometer_interface.sv:46
+$finish called at time : 1100300 ns : File "/home/dtorres/Documents/work/PID_maze_navigator/sim/tachometer_interface_tb.sv" Line 42
