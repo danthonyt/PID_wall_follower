@@ -28,15 +28,15 @@ module tachometer_interface_tb ();
       tachometer_pulse = 0;
       #(CLK_PERIOD*100);
       reset = 0;
-      // around 180 pulses in 100 ms for 300 rpm
-        repeat(180) begin
+      // around 18 pulses in 10 ms for 300 rpm
+        repeat(18) begin
           tachometer_pulse = 1;
-          #(CLK_PERIOD*30);
+          #(CLK_PERIOD*69445);
           tachometer_pulse = 0;
-          #(CLK_PERIOD*70);
+          #(CLK_PERIOD*69445);
         end
 
-      #(CLK_PERIOD*12500000);
+      #(CLK_PERIOD*1250000);
       $finish;
     end
 endmodule
