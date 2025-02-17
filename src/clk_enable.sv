@@ -1,5 +1,4 @@
 module clk_enable #(
-	parameter COUNT_WIDTH = 32,
 	parameter DIVISOR     = 1
 ) (
 	input  logic clk_in  ,
@@ -7,7 +6,7 @@ module clk_enable #(
 	output logic clk_en
 );
 
-	logic [COUNT_WIDTH-1:0] counter;
+	logic [$clog2(DIVISOR+1)-1:0] counter;
 	always_ff @(posedge clk_in or posedge reset_in) begin
 		if(reset_in) begin
 			clk_en  <= 0;

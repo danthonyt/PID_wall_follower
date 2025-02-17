@@ -39,8 +39,8 @@ module pid_controller #(
   // 100 Hz clock enable
   logic clk_en;
   clk_enable #(.COUNT_WIDTH(21), .DIVISOR(1249999)) i_clk_enable (
-    .clk_in  (clk_in  ),
-    .reset_in(reset_in),
+    .clk_in  (clk  ),
+    .reset_in(reset),
     .clk_en  (clk_en  )
   );
 

@@ -2,6 +2,7 @@ module tachometer_interface_tb ();
 
   // Parameters
   time CLK_PERIOD = 8ns; // 125 Mhz clock
+  time SLOW_CLK_EN_PERIOD = 0.1ms; // 10 Khz clock enable
   //Ports
   logic        clk             ;
   logic        reset           ;
@@ -26,17 +27,18 @@ module tachometer_interface_tb ();
     begin
       reset = 1;
       tachometer_pulse = 0;
-      #(CLK_PERIOD*100);
+      #(SLOW_CLK_EN_PERIOD*10);
       reset = 0;
-      // around 18 pulses in 10 ms for 300 rpm
-        repeat(18) begin
+      #SLOW_CLK_EN_PERIOD;
+      // around 10 pulses in 10 ms for 300 rpm
+        repeat(10) begin
           tachometer_pulse = 1;
-          #(CLK_PERIOD*69445);
+          #(SLOW_CLK_EN_PERIOD);
           tachometer_pulse = 0;
-          #(CLK_PERIOD*69445);
+          #(SLOW_CLK_EN_PERIOD);
         end
 
-      #(CLK_PERIOD*1250000);
+      #(SLOW_CLK_EN_PERIOD*100);
       $finish;
     end
 endmodule
