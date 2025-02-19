@@ -1227,3 +1227,12 @@ WARNING: [filemgmt 56-199] Attempt to get parsing info during refresh. "On-the-f
 WARNING: [filemgmt 56-199] Attempt to get parsing info during refresh. "On-the-fly" syntax checking information may be incorrect. [/home/dtorres/Documents/work/PID_maze_navigator/sim/clk_enable_tb.sv:]
 WARNING: [filemgmt 56-199] Attempt to get parsing info during refresh. "On-the-fly" syntax checking information may be incorrect. [/home/dtorres/Documents/work/PID_maze_navigator/sim/clk_enable_tb.sv:]
 WARNING: [filemgmt 56-199] Attempt to get parsing info during refresh. "On-the-fly" syntax checking information may be incorrect. [/home/dtorres/Documents/work/PID_maze_navigator/sim/clk_enable_tb.sv:]
+close_sim
+INFO: [Simtcl 6-16] Simulation closed
+current_sim simulation_11
+close_sim
+INFO: [Simtcl 6-16] Simulation closed
+close_sim
+INFO: [Simtcl 6-16] Simulation closed
+exit
+INFO: [Common 17-206] Exiting Vivado at Mon Feb 17 00:49:46 2025...

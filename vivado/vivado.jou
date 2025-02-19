@@ -144,3 +144,7 @@ remove_files  -fileset sim_1 /home/dtorres/Documents/work/PID_maze_navigator/viv
 close_sim
 launch_simulation
 source clk_enable_tb.tcl
+close_sim
+current_sim simulation_11
+close_sim
+close_sim
