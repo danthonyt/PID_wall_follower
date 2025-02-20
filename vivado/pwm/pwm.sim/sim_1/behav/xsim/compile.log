@@ -1,4 +1,4 @@
-INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/src/clk_enable.sv" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module clk_enable
-INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/sim/clk_enable_tb.sv" into library xil_defaultlib
-INFO: [VRFC 10-311] analyzing module clk_enable_tb
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/src/i2c_master.sv" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module i2c_master
+INFO: [VRFC 10-2263] Analyzing SystemVerilog file "/home/dtorres/Documents/work/PID_maze_navigator/sim/i2c_master_tb.sv" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module i2c_master_tb

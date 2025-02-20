@@ -1,2 +1,2 @@
 Time resolution is 1 ps
-$finish called at time : 20000032 ns : File "/home/dtorres/Documents/work/PID_maze_navigator/sim/clk_enable_tb.sv" Line 29
+$finish called at time : 463276 ns : File "/home/dtorres/Documents/work/PID_maze_navigator/sim/i2c_master_tb.sv" Line 61
