@@ -9,7 +9,8 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	input  logic [                                    7:0] din [0:MAX_BYTES_PER_TRANSACTION-1] ,
 	input  logic [$clog2(MAX_BYTES_PER_TRANSACTION+1)-1:0] transaction_bytes_num               ,
 	output logic [                                    7:0] dout [0:MAX_BYTES_PER_TRANSACTION-1], // i2c read data if read selected
-	output logic                                           transaction_done                      // transaction complete
+	output logic                                           transaction_done                    , // transaction complete
+	output logic                                           error
 );
 // inputs to be registered
 	logic [                                    6:0] slave_addr_reg                                          ; // address of slave device
@@ -29,7 +30,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	logic [                                    3:0] bit_count                   ;
 	logic                                           delay_en                    ;
 	// fsm state signals
-	typedef enum logic [3:0] {STATE_IDLE,STATE_START,STATE_ADDRESS,STATE_CHECK_ACK,STATE_SEND_ACK,STATE_NACK,STATE_WRITE,STATE_READ, STATE_STOP} states_t;
+	typedef enum logic [3:0] {STATE_READY,STATE_START,STATE_ADDRESS,STATE_CHECK_ACK,STATE_SEND_ACK,STATE_NACK,STATE_WRITE,STATE_READ, STATE_STOP} states_t;
 	states_t state, next_state;
 	// constants
 	localparam LOW_CYCLES          = 673;
@@ -89,12 +90,13 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 			sda_wr_en                    <= 0;
 			sda_out                      <= 1'b1;
 			bit_count                    <= 0;
-			state                        <= STATE_IDLE;
-			next_state                   <= STATE_IDLE;
+			state                        <= STATE_READY;
+			next_state                   <= STATE_READY;
 			current_transaction_byte_num <= 0;
+			error                        <= 0;
 		end else begin
 			unique case (state)
-				STATE_IDLE : begin
+				STATE_READY : begin
 					rd_nwr_reg                   <= rd_nwr;
 					slave_addr_reg               <= slave_addr;
 					din_reg                      <= din;
@@ -106,9 +108,10 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					sda_wr_en                    <= 0;
 					sda_out                      <= 1'b1;
 					bit_count                    <= 0;
-					state                        <= STATE_IDLE;
-					next_state                   <= STATE_IDLE;
+					state                        <= STATE_READY;
+					next_state                   <= STATE_READY;
 					current_transaction_byte_num <= 0;
+					error                        <= 0;
 					if (transaction_start)
 						state <= STATE_START;	// begin attempt of read or write
 				end
@@ -150,6 +153,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 				end
 				STATE_NACK : begin
 					state <= STATE_NACK;
+					error <= 1;
 				end
 				STATE_WRITE : begin
 					sda_wr_en <= 1;
@@ -187,13 +191,18 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					if (clock_cycle_counter == LOW_CYCLES/2) state <= next_state;
 				end
 				STATE_STOP : begin
-
-					if (delay_counter == LOW_CYCLES/2) begin
-						transaction_done <= 1;	// release sda line
-						sda_wr_en        <= 0;
+					if (delay_counter == 0) begin
+						sda_wr_en <= 1;
+						sda_out <= 0;
+					end else if (delay_counter == LOW_CYCLES) begin // wait for at least 600 ns to allow next start condition
 						dout             <= dout_reg;
-						state            <= STATE_IDLE;
-					end else if (clock_cycle_counter >= LOW_CYCLES) begin	// scl should be high
+						transaction_done <= 1;
+						state <= STATE_READY;
+						delay_en <= 0;
+					end else if (delay_counter == LOW_CYCLES/2) begin	// wait at least 600 ns after scl is high
+						sda_wr_en <= 0;
+					end
+					if (clock_cycle_counter >= LOW_CYCLES) begin	// scl should be high
 						scl_wr_en <= 0;	// release scl line while scl is already high
 						delay_en  <= 1;
 					end

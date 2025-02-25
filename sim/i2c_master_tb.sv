@@ -66,8 +66,9 @@ task i2c_write;
 			repeat(8) @(posedge clk iff (i_i2c_master.clock_cycle_counter == LOW_CYCLES/2));	// go to ack
 			sda_drive = 0; // ack
 		end
+		@(posedge clk iff (i_i2c_master.clock_cycle_counter == LOW_CYCLES/2));
+		sda_drive = 1;
 		@(posedge transaction_done);
-		sda_drive = 1; 
 	end
 endtask
 
@@ -95,9 +96,9 @@ task i2c_read;
 			@(posedge clk iff (i_i2c_master.clock_cycle_counter == LOW_CYCLES/2));	// go to ack
 			sda_drive = 0; // ack
 		end
-
+		@(posedge clk iff (i_i2c_master.clock_cycle_counter == LOW_CYCLES/2));
+		sda_drive = 1;
 		@(posedge transaction_done);
-		sda_drive = 1; 
 	end
 endtask
 
@@ -114,7 +115,7 @@ initial begin
 		#CLK_PERIOD reset = 0;
 
 		i2c_write(.num_bytes(3),.device_address(7'h48),.transaction_msg({8'h01, 8'h42,8'hA3}));
-		i2c_write(.num_bytes(1),.device_address(7'h48),.transaction_msg({8'h01,8'd0,8'd0}));
+		i2c_write(.num_bytes(1),.device_address(7'h48),.transaction_msg({8'h01,08'd0,8'd0}));
 		i2c_read(.num_bytes(2),.device_address(7'h48),.expected_read_msg({8'hA0,8'h29,8'd0}));
 
 		$finish;
