@@ -1,12 +1,11 @@
 module i2c_test (
-	input  logic       clk    ,
-	input  logic       reset  ,
-	inout  logic       scl_pin,
-	inout  logic       sda_pin,
-
-	output logic led1,
-	output logic led2,
-	output logic led3,
+	input  logic clk    ,
+	input  logic reset  ,
+	inout  logic scl_pin,
+	inout  logic sda_pin,
+	output logic led1   ,
+	output logic led2   ,
+	output logic led3   ,
 	output logic led4
 );
 	logic                   transaction_start         ;
@@ -17,10 +16,12 @@ module i2c_test (
 	logic [            7:0] dout                 [0:2];
 	logic [            7:0] dout_reg             [0:2];
 	logic                   transaction_done          ;
+	logic [           15:0] adc_data   [0:9]               ;
+	logic [3:0] adc_idx;
 
 	logic [26:0] delay_counter;
 	logic        delay_en     ;
-	logic error;
+	logic        error        ;
 	i2c_master #(.MAX_BYTES_PER_TRANSACTION(3)) i_i2c_master (
 		.clk                  (clk                  ),
 		.reset                (reset                ),
@@ -33,24 +34,31 @@ module i2c_test (
 		.transaction_bytes_num(transaction_bytes_num),
 		.dout                 (dout                 ),
 		.transaction_done     (transaction_done     ),
-		.error                (error)
+		.error                (error                )
 	);
 
-	ila_0 i_ila (
+
+	ila_1 ila_1_i (
 	.clk(clk), // input wire clk
 
 
-	.probe0(led1), // input wire [0:0]  probe0  
-	.probe1(led2), // input wire [0:0]  probe1 
-	.probe2(led3), // input wire [0:0]  probe2 
-	.probe3(error), // input wire [0:0]  probe3 
-	.probe4(transaction_done) // input wire [0:0]  probe4
+	.probe0(adc_data[0]), // input wire [15:0]  probe0  
+	.probe1(adc_data[1]), // input wire [15:0]  probe1 
+	.probe2(adc_data[2]), // input wire [15:0]  probe2 
+	.probe3(adc_data[3]), // input wire [15:0]  probe3 
+	.probe4(adc_data[4]), // input wire [15:0]  probe4 
+	.probe5(adc_data[5]), // input wire [15:0]  probe5 
+	.probe6(adc_data[6]), // input wire [15:0]  probe6 
+	.probe7(adc_data[7]), // input wire [15:0]  probe7 
+	.probe8(adc_data[8]), // input wire [15:0]  probe8 
+	.probe9(adc_data[9]), // input wire [15:0]  probe9 
+	.probe10(error), // input wire [0:0]  probe10 
+	.probe11(transaction_done) // input wire [0:0]  probe11
 );
 
 
-
 	assign slave_addr = 7'h48;
-	typedef enum logic [3:0] {STATE_CONFIGURE,STATE_SET,STATE_SAMPLE,STATE_WAIT,STATE_1SECOND_WAIT} states_t;
+	typedef enum logic [3:0] {STATE_CONFIGURE,STATE_SET,STATE_SAMPLE,STATE_WAIT,STATE_4MS_WAIT} states_t;
 	states_t state,next_state;
 
 	// delay counter
@@ -66,72 +74,50 @@ module i2c_test (
 	end
 
 
-	always_ff @(posedge clk or posedge reset) begin 
+	always_ff @(posedge clk or posedge reset) begin
 		if(reset) begin
-			dout_reg <= {0,0,0};
-			led1 <= 0;
-			led2 <= 0;
-			led3 <= 0;
-			//led4 <= 0;
-			state <= STATE_CONFIGURE;
+			adc_data <= {0,0,0,0,0,0,0,0,0,0};
+			state    <= STATE_CONFIGURE;
+			adc_idx <= 0;
 		end else begin
 			transaction_start <= 0;
 			delay_en          <= 0;
 			unique case (state)
 				STATE_CONFIGURE : begin
-					delay_en <= 0;
-					led1 <=1;
-					led2 <= 0;
-					led3 <= 0;
-					//led4 <= 0;
+					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 0;
-					din                   <= {8'h01, 8'h85,8'h83};
-					//din                   <= {8'h01, 8'h42,8'hA3};
+					din                   <= {8'h01, 8'h42,8'h83};
 					transaction_bytes_num <= 3;
-					state                 <= STATE_1SECOND_WAIT;
+					state                 <= STATE_4MS_WAIT;
 					next_state            <= STATE_SET;
 				end
 				STATE_SET : begin
-					delay_en <= 0;
-					led1 <= 0;
-					led2 <= 1;
-					led3 <= 0;
-					//led4 <= 0;
-
-					transaction_start     <= 1;
-					rd_nwr                <= 0;
-					din                   <= {8'h01, 8'h85,8'h83};
-					//din                   <= {8'h00, 0,0};
-					transaction_bytes_num <= 1;
-					state                 <= STATE_1SECOND_WAIT;
-					next_state            <= STATE_SAMPLE;
-					/*
+					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 0;
 					din                   <= {8'h00,8'd0,8'd0};
 					transaction_bytes_num <= 1;
-					state                 <= STATE_1SECOND_WAIT;
+					state                 <= STATE_4MS_WAIT;
 					next_state            <= STATE_SAMPLE;
-					*/
+
 				end
 				STATE_SAMPLE : begin
-					delay_en <= 0;
-					led1 <= 0;
-					led2 <= 0;
-					led3 <= 1;
-					//led4 <= 0;
+					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 1;
 					transaction_bytes_num <= 2;
-					state                 <= STATE_1SECOND_WAIT;
+					state                 <= STATE_4MS_WAIT;
 					next_state            <= STATE_SAMPLE;
 				end
-				STATE_1SECOND_WAIT : begin
+				STATE_4MS_WAIT : begin
 					delay_en <= 1;
 
-					if (transaction_done) dout_reg <= dout;
-					if(delay_counter == 125000000) begin 	// sample every 1 second
+					if (transaction_done) begin 
+						adc_data[adc_idx] <= {dout[0],dout[1]};
+						adc_idx <= adc_idx + 1;
+					end
+					if(delay_counter == 500000) begin 	// sample every 1 second
 						state <= next_state;
 
 					end
@@ -139,19 +125,16 @@ module i2c_test (
 			endcase
 		end
 	end
-assign led4 = error;
-/*
-	always_comb begin 
-		 if ({dout_reg[0],dout_reg[1]} > 32768) led1 = 1;
-		else led1 = 0;
+	assign led4 = error;
+
+
+	always_comb begin
+		led1 = 0;
+		led2 = 0;
+		led3 = 0;
+		//if (adc_data > 49152) led3 = 1;
+		//else if (adc_data > 32768) led2 = 1;
+		//else led1 = 1;
 	end
-	*/
-	/*
-	always_comb begin 
-		if ({dout_reg[0],dout_reg[1]} > 49152) led = 3'h4;
-		else if ({dout_reg[0],dout_reg[1]} > 32768) led = 3'h2;
-		else if ({dout_reg[0],dout_reg[1]} > 16384) led = 3'h1;
-		else led = 3'h1;
-	end
-	*/
+
 endmodule 

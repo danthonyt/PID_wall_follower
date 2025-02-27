@@ -33,6 +33,15 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	typedef enum logic [3:0] {STATE_READY,STATE_START,STATE_ADDRESS,STATE_CHECK_ACK,STATE_SEND_ACK,STATE_NACK,STATE_WRITE,STATE_READ, STATE_STOP} states_t;
 	states_t state, next_state;
 	// constants
+		// 5000 cycles for 50 khz
+	//localparam LOW_CYCLES          = 2500;
+	//localparam HIGH_CYCLES         = 2500;
+	// 2500 cycles for 50 khz
+	//localparam LOW_CYCLES          = 1250;
+	//localparam HIGH_CYCLES         = 1250;
+	//12,500 cycles for 10 khz scl
+	//localparam LOW_CYCLES          = 6250;
+	//localparam HIGH_CYCLES         = 6250;
 	localparam LOW_CYCLES          = 673;
 	localparam HIGH_CYCLES         = 577;
 	localparam MINIMUM_HOLD_CYCLES = 75 ;
@@ -111,7 +120,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					state                        <= STATE_READY;
 					next_state                   <= STATE_READY;
 					current_transaction_byte_num <= 0;
-					error                        <= 0;
+					//error                        <= 0;
 					if (transaction_start)
 						state <= STATE_START;	// begin attempt of read or write
 				end
@@ -145,6 +154,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 				STATE_CHECK_ACK : begin	// check ack bit of address frame release control of sda line
 					sda_wr_en <= 0;
 					if (clock_cycle_counter <= LOW_CYCLES/2) begin	// wait until next low scl
+						error <= 0;
 						state <= next_state;
 					end else if (clock_cycle_counter == LOW_CYCLES + HIGH_CYCLES/2) begin	// sample in the middle of high scl
 						if (sda_pin == 1'b1)	// high sda is a nack
@@ -152,7 +162,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					end
 				end
 				STATE_NACK : begin
-					state <= STATE_NACK;
+					state <= STATE_STOP;
 					error <= 1;
 				end
 				STATE_WRITE : begin
@@ -195,8 +205,8 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 						sda_wr_en <= 1;
 						sda_out <= 0;
 					end else if (delay_counter == LOW_CYCLES) begin // wait for at least 600 ns to allow next start condition
-						dout             <= dout_reg;
-						transaction_done <= 1;
+						if(!error) dout             <= dout_reg;
+						transaction_done <=  1;
 						state <= STATE_READY;
 						delay_en <= 0;
 					end else if (delay_counter == LOW_CYCLES/2) begin	// wait at least 600 ns after scl is high
