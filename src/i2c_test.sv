@@ -87,7 +87,7 @@ module i2c_test (
 					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 0;
-					din                   <= {8'h01, 8'h42,8'h83};
+					din                   <= {8'h01, 8'h42,8'h43};
 					transaction_bytes_num <= 3;
 					state                 <= STATE_4MS_WAIT;
 					next_state            <= STATE_SET;
