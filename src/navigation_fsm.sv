@@ -94,3 +94,54 @@ module navigation_fsm (
           end
       endcase
     end
+    always_ff @(posedge clk or posedge reset) begin
+    if(reset) begin
+      adc_data <= {0,0,0,0,0,0,0,0,0,0};
+      state    <= STATE_CONFIGURE;
+      adc_idx <= 0;
+    end else begin
+      transaction_start <= 0;
+      delay_en          <= 0;
+      unique case (state)
+        STATE_CONFIGURE : begin // modify adc config register 
+          delay_en              <= 0;
+          transaction_start     <= 1;
+          rd_nwr                <= 0;
+          din                   <= {8'h01, 8'h42,8'h43};
+          transaction_bytes_num <= 3;
+          state                 <= STATE_4MS_WAIT;
+          next_state            <= STATE_SET;
+        end
+        STATE_SET : begin // switch to adc data register
+          delay_en              <= 0;
+          transaction_start     <= 1;
+          rd_nwr                <= 0;
+          din                   <= {8'h00,8'd0,8'd0};
+          transaction_bytes_num <= 1;
+          state                 <= STATE_4MS_WAIT;
+          next_state            <= STATE_SAMPLE;
+
+        end
+        STATE_SAMPLE : begin  // read adc data register 
+          delay_en              <= 0;
+          transaction_start     <= 1;
+          rd_nwr                <= 1;
+          transaction_bytes_num <= 2;
+          state                 <= STATE_4MS_WAIT;
+          next_state            <= STATE_SAMPLE;
+        end
+        STATE_4MS_WAIT : begin  // wait for 10 ms 
+          delay_en <= 1;
+
+          if (transaction_done) begin 
+            adc_data[adc_idx] <= {dout[0],dout[1]};
+            adc_idx <= adc_idx + 1;
+          end
+          if(delay_counter == 500000) begin   // sample every 1 second
+            state <= next_state;
+
+          end
+        end
+      endcase
+    end
+  end
