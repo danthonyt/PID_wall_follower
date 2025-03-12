@@ -145,14 +145,14 @@ set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { motor_
                                                                                                                                  
                                                                                                                                  
 ##Pmod Header JE                                                                                                                  
-set_property -dict { PACKAGE_PIN V12   IOSTANDARD LVCMOS33 } [get_ports { scl_pin }]; #IO_L4P_T0_34 Sch=je[1]						 
-set_property -dict { PACKAGE_PIN W16   IOSTANDARD LVCMOS33 } [get_ports { sda_pin }]; #IO_L18N_T2_34 Sch=je[2]                     
-set_property -dict { PACKAGE_PIN J15   IOSTANDARD LVCMOS33 } [get_ports { motor_en }]; #IO_25_35 Sch=je[3]                          
+#set_property -dict { PACKAGE_PIN V12   IOSTANDARD LVCMOS33 } [get_ports { scl_pin }]; #IO_L4P_T0_34 Sch=je[1]						 
+#set_property -dict { PACKAGE_PIN W16   IOSTANDARD LVCMOS33 } [get_ports { sda_pin }]; #IO_L18N_T2_34 Sch=je[2]                     
+set_property -dict { PACKAGE_PIN J15   IOSTANDARD LVCMOS33 } [get_ports { tachometer_out_b_l }]; #IO_25_35 Sch=je[3]                          
 set_property -dict { PACKAGE_PIN H15   IOSTANDARD LVCMOS33 } [get_ports { tachometer_out_b_r }]; #IO_L19P_T3_35 Sch=je[4]                     
-set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports { tachometer_out_b_l }]; #IO_L3N_T0_DQS_34 Sch=je[7]                  
-set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { motor_pwm_l }]; #IO_L9N_T1_DQS_34 Sch=je[8]                  
-set_property -dict { PACKAGE_PIN T17   IOSTANDARD LVCMOS33 } [get_ports { motor_pwm_r }]; #IO_L20P_T3_34 Sch=je[9]                     
-#set_property -dict { PACKAGE_PIN Y17   IOSTANDARD LVCMOS33 } [get_ports { je[7] }]; #IO_L7N_T1_34 Sch=je[10]                    
+set_property -dict { PACKAGE_PIN V13   IOSTANDARD LVCMOS33 } [get_ports { motor_en_r }]; #IO_L3N_T0_DQS_34 Sch=je[7]                  
+set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { motor_en_l  }]; #IO_L9N_T1_DQS_34 Sch=je[8]                  
+set_property -dict { PACKAGE_PIN T17   IOSTANDARD LVCMOS33 } [get_ports { motor_pwm_l }]; #IO_L20P_T3_34 Sch=je[9]                     
+set_property -dict { PACKAGE_PIN Y17   IOSTANDARD LVCMOS33 } [get_ports { motor_pwm_r }]; #IO_L7N_T1_34 Sch=je[10]                    
 
 
 ##Pcam MIPI CSI-2 Connector

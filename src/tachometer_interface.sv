@@ -4,8 +4,8 @@ module tachometer_interface (
   input  logic       tachometer_pulse_in, // pulse from tachometer
   output logic [8:0] actual_rpm_out       // actual rpm of motor
 );
-  logic [ 7:0] rising_edge_cnt              ;
-  logic [ 7:0] clock_cycle_cnt              ;
+  int unsigned rising_edge_cnt              ;
+  int unsigned clock_cycle_cnt              ;
   logic        prev_tachometer_pulse        ;
   // 10 KHz clock enable 
   logic clk_en;

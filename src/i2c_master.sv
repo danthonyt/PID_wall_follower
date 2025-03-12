@@ -19,8 +19,8 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	logic [                                    7:0] dout_reg                 [0:MAX_BYTES_PER_TRANSACTION-1];
 	logic [$clog2(MAX_BYTES_PER_TRANSACTION+1)-1:0] transaction_bytes_num_reg                               ;
 	// counter signals
-	logic [10:0] clock_cycle_counter;
-	logic [10:0] delay_counter      ;
+	int unsigned clock_cycle_counter;
+	int unsigned delay_counter      ;
 	// fsm outputs
 	logic                                           scl_out,scl_out_actual;
 	logic                                           sda_out,sda_out_actual;
