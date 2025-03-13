@@ -15,6 +15,14 @@ module hello_uart (
 	typedef enum logic [3:0] {STATE_READY,STATE_H,STATE_E,STATE_L1,STATE_L2,STATE_O} states_t;
 	states_t state, next_state;
 
+	logic [7:0] data_array [0:4]; // 'HELLO'
+	assign data_array = {
+		8'h48,
+		8'h45,
+		8'h4C,
+		8'h4C,
+		8'h4F
+	};
 	uart_top #(.DATA_WIDTH(8), .CLKS_PER_BIT(1231)) i_uart_top (
 		.reset    (reset    ),
 		.start    (start    ),

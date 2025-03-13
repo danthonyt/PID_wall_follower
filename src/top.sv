@@ -4,28 +4,22 @@ module top (
 	// i2c interface
 	//inout  logic scl_pin           ,
 	//inout  logic sda_pin           ,
+	// uart interface
+	output logic serial_tx         , // sends PID error data
+	input  logic uart_en_sw        , // enables uart communication
+	input  logic dtr               , // low when pc is ready for communication
 	// tachometer inputs
 	input  logic tachometer_out_b_l, // use to measure pwm of left/right motor
 	input  logic tachometer_out_b_r,
 	// motor inputs/outputs
 	input  logic motor_en_sw       , // switch input for motor enable
-	output logic motor_en_l          , // enables both motors when high
-	output logic motor_en_r,
+	output logic motor_en_l        , // enables both motors when high
+	output logic motor_en_r        ,
 	output logic motor_pwm_l       , // pwm drives left/right motor
 	output logic motor_pwm_r
 );
 // dc motor has time constant = 100ms
 // pwm should be 100 Hz frequency
-	
-	/*
-	ila_0 rpm_measure_ila (
-	.clk(clk), // input wire clk
-
-
-	.probe0(rpm_l_measured), // input wire [8:0] probe0
-	.probe1(rpm_r_measured)
-);
-*/
 
 	logic [15:0] duty_cycle_l;
 	pwm #(.R(16)) i_pwm_l (
@@ -62,8 +56,8 @@ module top (
 		.actual_rpm_out     (rpm_r_measured    )
 	);
 
-	logic [8:0] rpm_l_setpoint         ;
-	logic [8:0] rpm_l_measured         ;
+	logic [ 8:0] rpm_l_setpoint         ;
+	logic [ 8:0] rpm_l_measured         ;
 	logic [15:0] duty_cycle_l_correction;
 	pid_controller #(.PID_INT_WIDTH(8), .PID_FRAC_WIDTH(8), .SP_WIDTH(8), .PID_OUT_WIDTH(16)) i_pid_controller_tach_l (
 		.clk               (clk                    ),
@@ -76,8 +70,8 @@ module top (
 		.control_signal_out(duty_cycle_l_correction)
 	);
 
-	logic [8:0] rpm_r_setpoint         ;
-	logic [8:0] rpm_r_measured         ;
+	logic [ 8:0] rpm_r_setpoint         ;
+	logic [ 8:0] rpm_r_measured         ;
 	logic [15:0] duty_cycle_r_correction;
 	pid_controller #(.PID_INT_WIDTH(8), .PID_FRAC_WIDTH(8), .SP_WIDTH(8), .PID_OUT_WIDTH(16)) i_pid_controller_tach_r (
 		.clk               (clk                    ),
@@ -91,7 +85,7 @@ module top (
 	);
 	assign rpm_r_setpoint = 100;
 	assign rpm_l_setpoint = 100;
-	
+
 
 	always_ff @(posedge clk or posedge reset) begin : proc_
 		if(reset) begin
@@ -102,7 +96,7 @@ module top (
 			duty_cycle_r <= duty_cycle_r + duty_cycle_r_correction;
 		end
 	end
-	
+
 
 
 
@@ -139,5 +133,19 @@ module top (
 	.control_signal(rpm_diff      )
 	);
 	*/
+
+	logic       start_tx    ;
+	logic [7:0] tx_msg      ;
+	logic       uart_tx_done;
+	uart_tx #(.DATA_WIDTH(8), .CLKS_PER_BIT(1085)) i_uart_tx (
+		.clk      (clk         ),
+		.reset    (reset       ),
+		.start    (start_tx    ),
+		.din      (tx_msg      ),
+		.serial_tx(serial_tx   ),
+		.done     (uart_tx_done)
+	);
+
+
 
 endmodule

@@ -14,7 +14,7 @@ module adc_read_fsm (
 	logic                   transaction_done          ;
 	logic [           15:0] adc_data                  ;
 
-	logic [26:0] delay_counter;
+	longint unsigned delay_counter;
 	logic        delay_en     ;
 	logic        error        ;
 	i2c_master #(.MAX_BYTES_PER_TRANSACTION(3)) i_i2c_master (
@@ -33,7 +33,7 @@ module adc_read_fsm (
 	);
 
 	assign slave_addr = 7'h48;	// slave address of adc
-	typedef enum logic [3:0] {STATE_CONFIGURE,STATE_SET,STATE_SAMPLE,STATE_PID,STATE_WAIT,STATE_10MS_WAIT} states_t;
+	typedef enum logic [3:0] {STATE_CONFIGURE,STATE_SET,STATE_SAMPLE,STATE_50MS_WAIT} states_t;
 	states_t state,next_state;
 
 	// delay counter
@@ -61,18 +61,18 @@ module adc_read_fsm (
 					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 0;
-					din                   <= {8'h01, 8'h42,8'h83};
+					din                   <= {8'h01, 8'h42,8'43};	// select config register, FSR = 4.096v, 32 SPS
 					transaction_bytes_num <= 3;
-					state                 <= STATE_10MS_WAIT;
+					state                 <= STATE_50MS_WAIT;
 					next_state            <= STATE_SET;
 				end
 				STATE_SET : begin // switch to adc data register
 					delay_en              <= 0;
 					transaction_start     <= 1;
 					rd_nwr                <= 0;
-					din                   <= {8'h00,8'd0,8'd0};
+					din                   <= {8'h00,8'd0,8'd0};	// select data register to then read conversions
 					transaction_bytes_num <= 1;
-					state                 <= STATE_10MS_WAIT;
+					state                 <= STATE_50MS_WAIT;
 					next_state            <= STATE_SAMPLE;
 
 				end
@@ -81,14 +81,14 @@ module adc_read_fsm (
 					transaction_start     <= 1;
 					rd_nwr                <= 1;
 					transaction_bytes_num <= 2;
-					state                 <= STATE_10MS_WAIT;
+					state                 <= STATE_50MS_WAIT;
 					next_state            <= STATE_SAMPLE;
 				end
-				STATE_10MS_WAIT : begin  // wait for 10 ms
+				STATE_50MS_WAIT : begin  // wait for 50 ms and also register data once collected from a transaction
 					delay_en <= 1;
 					if (transaction_done)
 						adc_data <= {dout[0],dout[1]};
-					if(delay_counter == 1250000)    // sample every 10 ms
+					if(delay_counter == 6250000000000)    // sample every 50 ms
 						state <= next_state;
 
 				end
