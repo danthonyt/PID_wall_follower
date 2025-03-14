@@ -7,7 +7,6 @@ module top (
 	// uart interface
 	output logic serial_tx         , // sends PID error data
 	input  logic uart_en_sw        , // enables uart communication
-	input  logic dtr               , // low when pc is ready for communication
 	// tachometer inputs
 	input  logic tachometer_out_b_l, // use to measure pwm of left/right motor
 	input  logic tachometer_out_b_r,
@@ -98,6 +97,8 @@ module top (
 	end
 
 
+uart_data_fsm i_uart_data_fsm (.clk(clk), .reset(reset), .fsm_en(uart_en_sw), .serial_tx(serial_tx));
+
 
 
 
@@ -134,17 +135,7 @@ module top (
 	);
 	*/
 
-	logic       start_tx    ;
-	logic [7:0] tx_msg      ;
-	logic       uart_tx_done;
-	uart_tx #(.DATA_WIDTH(8), .CLKS_PER_BIT(1085)) i_uart_tx (
-		.clk      (clk         ),
-		.reset    (reset       ),
-		.start    (start_tx    ),
-		.din      (tx_msg      ),
-		.serial_tx(serial_tx   ),
-		.done     (uart_tx_done)
-	);
+	
 
 
 

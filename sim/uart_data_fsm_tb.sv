@@ -3,10 +3,9 @@ module uart_data_fsm_tb ();
 	time  CLK_PERIOD = 8ns;
 	logic clk             ;
 	logic reset           ;
-	logic dtr             ;
 	logic fsm_en          ;
 	logic serial_tx       ;
-		uart_data_fsm i_uart_data_fsm (.clk(clk), .reset(reset), .dtr(dtr), .fsm_en(fsm_en), .serial_tx(serial_tx)); 
+		uart_data_fsm i_uart_data_fsm (.clk(clk), .reset(reset), .fsm_en(fsm_en), .serial_tx(serial_tx)); 
 
 	initial begin
 		clk = 0;
@@ -17,11 +16,9 @@ module uart_data_fsm_tb ();
 
 	initial begin
 		reset = 1;
-		dtr = 1;
 	    fsm_en = 0;
 	    #(CLK_PERIOD*10);
 	    reset = 0;
-	    dtr = 0;
 	    fsm_en = 1;
 	    repeat(16) begin 
 	    	@(posedge i_uart_data_fsm.uart_tx_done);
