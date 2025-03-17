@@ -62,19 +62,29 @@ with open('output.csv', mode='w', newline='') as csv_file:
     finally:
         ser.close()
 
-# Plotting the graph after data collection
+# Plotting the main graph after data collection
 try:
     data = pd.read_csv('output.csv')
     plt.figure(figsize=(10, 6))
     plt.plot(data['Time (ms)'], data['Angular Velocity (RPM)'], marker='o', linestyle='-', color='b', label='Angular Velocity (RPM)')
     plt.plot(data['Time (ms)'], data['Duty Cycle Offset'], marker='x', linestyle='--', color='r', label='Duty Cycle Offset')
     plt.plot(data['Time (ms)'], data['Error'], marker='^', linestyle=':', color='g', label='Error')
-    plt.plot(data['Time (ms)'], data['Duty Cycle'], marker='s', linestyle='-.', color='m', label='Duty Cycle')
     plt.xlabel('Time (ms)')
     plt.ylabel('Values')
-    plt.title('Angular Velocity, Duty Cycle Offset, Error, and Duty Cycle vs Time')
+    plt.title('Angular Velocity, Duty Cycle Offset, and Error vs Time')
     plt.legend()
     plt.grid(True)
     plt.show()
+
+    # Plotting the duty cycle in a separate figure
+    plt.figure(figsize=(10, 6))
+    plt.plot(data['Time (ms)'], data['Duty Cycle'], marker='s', linestyle='-.', color='m', label='Duty Cycle')
+    plt.xlabel('Time (ms)')
+    plt.ylabel('Duty Cycle')
+    plt.title('Duty Cycle vs Time')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 except Exception as e:
     print(f'Error plotting data: {e}')

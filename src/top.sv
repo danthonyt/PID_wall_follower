@@ -59,6 +59,7 @@ module top (
 	// FIFO signals
 	logic        fifo_ltach_wr_en;
 	logic        fifo_ltach_rd_en;
+	logic [FIFO_RD_DATA_WIDTH-1:0] fifo_ltach_din  ;
 	logic [FIFO_RD_DATA_WIDTH-1:0] fifo_ltach_dout ;
 	logic        fifo_ltach_empty;
 	logic        fifo_ltach_full ;
@@ -141,13 +142,13 @@ module top (
 		.rst  (reset                                                                                                                                         ),
 		.wr_en(fifo_ltach_wr_en                                                                                                                              ),
 		.rd_en(fifo_ltach_rd_en                                                                                                                              ),
-		.din  ({22'd0,rpm_l_measured,{15{duty_cycle_l_correction[PWM_RESOLUTION]}},duty_cycle_l_correction,{22{error_tach_l[RPM_RESOLUTION-1]}},error_tach_l,16'd0,duty_cycle_l}),
+		.din  (fifo_ltach_din),
 		.dout (fifo_ltach_dout                                                                                                                               ),
 		.empty(fifo_ltach_empty                                                                                                                              ),
 		.full (fifo_ltach_full                                                                                                                               )
 	);
 
-	uart_data_fsm #(.FIFO_RD_DATA_WIDTH(96)) i_uart_data_fsm (
+	uart_data_fsm #(.FIFO_RD_DATA_WIDTH(FIFO_RD_DATA_WIDTH)) i_uart_data_fsm (
 		.clk          (clk             ),
 		.reset        (reset           ),
 		.fsm_en       (uart_en_sw      ),
@@ -181,6 +182,7 @@ module top (
 	assign k_d_r          = 0;
 	assign rpm_r_setpoint = 'd100;
 	assign rpm_l_setpoint = 'd100;
+	assign fifo_ltach_din = {22'd0,rpm_l_measured,{15{duty_cycle_l_correction[PWM_RESOLUTION]}},duty_cycle_l_correction,{22{error_tach_l[RPM_RESOLUTION-1]}},error_tach_l,16'd0,duty_cycle_l};
 	// convert duty cycle to signed for addition calculation
 	assign curr_duty_cycle_l_sig = {1'd0,duty_cycle_l};
 	assign curr_duty_cycle_r_sig = {1'd0,duty_cycle_r};
@@ -199,8 +201,10 @@ module top (
 			duty_cycle_l <= 0;
 			duty_cycle_r <= 0;
 		end else begin
-			duty_cycle_l <= next_duty_cycle_l_uns ;
-			duty_cycle_r <= next_duty_cycle_r_uns ;
+			if(clk_en_20hz) begin
+				duty_cycle_l <= next_duty_cycle_l_uns ;
+				duty_cycle_r <= next_duty_cycle_r_uns ;
+			end
 		end
 	end
 	// trigger wr_en if fifo is not full and on negative edge of clk_en and motor is running
