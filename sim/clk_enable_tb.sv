@@ -1,5 +1,5 @@
 module clk_enable_tb ();
-	// Parameters
+// Parameters
 	time CLK_PERIOD = 8ns;
 // 125 MHz system clock
 	logic clk_tb          ;
