@@ -1,34 +1,40 @@
 module pid_controller #(
+  parameter PID_INT_WIDTH  = 8 ,
   parameter PID_FRAC_WIDTH = 8 ,
   parameter PV_WIDTH       = 9 ,
   parameter CONTROL_WIDTH  = 16
 ) (
-  input  logic                                                       clk               ,
-  input  logic                                                       reset             ,
-  input  logic                                                       clk_en            ,
-  input  logic                                                       en                ,
+  input  logic                                            clk        ,
+  input  logic                                            reset      ,
+  input  logic                                            clk_en     ,
+  input  logic                                            en         ,
   // proportional parameter
-  input  logic        [(CONTROL_WIDTH-PV_WIDTH-3)-1:-PID_FRAC_WIDTH] k_p               ,
+  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_p        ,
   // integral parameter
-  input  logic        [(CONTROL_WIDTH-PV_WIDTH-3)-1:-PID_FRAC_WIDTH] k_i               ,
+  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_i        ,
   // derivative parameter
-  input  logic        [(CONTROL_WIDTH-PV_WIDTH-3)-1:-PID_FRAC_WIDTH] k_d               ,
+  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_d        ,
   // target value
-  input  logic        [                                PV_WIDTH-1:0] setpoint          ,
+  input  logic unsigned [                   PV_WIDTH-1:0] setpoint   ,
   // actual value from sensor
-  input  logic        [                                PV_WIDTH-1:0] feedback          ,
-  output logic        [                                  PV_WIDTH:0] error             ,
+  input  logic unsigned [                   PV_WIDTH-1:0] feedback   ,
+  output logic signed   [                     PV_WIDTH:0] error      ,
   // corrected output add another bit for sign bit
-  output logic signed [                           CONTROL_WIDTH-1:0] control_signal_out
+  output logic signed   [              CONTROL_WIDTH-1:0] control_out
 );
-  //PID_INT_WIDTH       = CONTROL_WIDTH-3-PV_WIDTH;
-  logic signed [                               PV_WIDTH:-PID_FRAC_WIDTH] error_fp,prev_error_fp;
-  logic signed [             (CONTROL_WIDTH-PV_WIDTH-3):-PID_FRAC_WIDTH] k_p_signed,k_i_signed,k_d_signed;
-  logic signed [1+PV_WIDTH+(CONTROL_WIDTH-PV_WIDTH-3):-PID_FRAC_WIDTH*2] u_p                 ;
-  logic signed [1+PV_WIDTH+(CONTROL_WIDTH-PV_WIDTH-3):-PID_FRAC_WIDTH*2] u_i                 ;
-  logic signed [1+PV_WIDTH+(CONTROL_WIDTH-PV_WIDTH-3):-PID_FRAC_WIDTH*2] u_d                 ;
-  logic signed [2+PV_WIDTH+(CONTROL_WIDTH-PV_WIDTH-3):-PID_FRAC_WIDTH*2] control_signal      ;
-  logic signed [                                      CONTROL_WIDTH-1:0] control_signal_trunc;
+
+  
+  localparam                                         U_SIZE_INT              = PV_WIDTH+PID_INT_WIDTH-1          ;
+  localparam                                         U_SIZE_FRAC             = PID_FRAC_WIDTH*2                  ;
+  localparam                                         CONTROL_RAW_SIZE_INT    = U_SIZE_INT+1                      ;
+  localparam signed                                             WIDTH_DIFF              = CONTROL_WIDTH-CONTROL_RAW_SIZE_INT; // difference between control output size and control signal size before truncation
+  logic            signed [           PV_WIDTH:-PID_FRAC_WIDTH] error_fp,prev_error_fp;
+  logic            signed [      PID_INT_WIDTH:-PID_FRAC_WIDTH] k_p_signed,k_i_signed,k_d_signed;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_p                                                         ;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_i                                                         ;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_d                                                         ;
+  logic            signed [CONTROL_RAW_SIZE_INT-1:-U_SIZE_FRAC] control_signal_raw                                          ;
+  logic            signed [                  CONTROL_WIDTH-1:0] control_signal_adjusted                                     ;
 
   assign error      = $signed({1'd0,setpoint}) - $signed({1'd0,feedback});
   assign error_fp   = {error,{PID_FRAC_WIDTH{1'b0}}};
@@ -41,32 +47,46 @@ module pid_controller #(
       if (reset)
         begin
           // proportional
-          u_p            <= 0;
+          u_p                <= 0;
           // integral
-          u_i            <= 0;
+          u_i                <= 0;
           // derivative
-          u_d            <= 0;
+          u_d                <= 0;
           // final output
-          control_signal <= 0;
-          prev_error_fp  <= 0;
+          control_signal_raw <= 0;
+          prev_error_fp      <= 0;
         end
       else
         begin
           if (clk_en) begin
             if(en) begin
               // proportional - u_p = k_p * error
-              u_p            <= k_p_signed * error_fp;
+              u_p                <= k_p_signed * error_fp;
               // integral - u_i = u_i + k_i * delta
-              u_i            <= u_i + (k_i_signed * error_fp);
+              u_i                <= u_i + (k_i_signed * error_fp);
               // derivative - u_d = k_d * (error[n] - error[n-1])
-              u_d            <= k_d_signed * (error_fp - prev_error_fp);
+              u_d                <= k_d_signed * (error_fp - prev_error_fp);
               // final output
-              control_signal <= u_p + u_i + u_d;
-              prev_error_fp  <= error_fp;
+              control_signal_raw <= u_p + u_i + u_d;
+              prev_error_fp      <= error_fp;
             end
           end
         end
     end
-  assign control_signal_trunc = control_signal[CONTROL_WIDTH-1:0];  // cut off fractional part.
-  assign control_signal_out   = control_signal_trunc;
+
+  generate
+    if (WIDTH_DIFF == 0) begin
+      // Widths are equal, direct assignment
+      assign control_signal_adjusted = control_signal_raw[CONTROL_RAW_SIZE_INT-1:0];
+    end else if (WIDTH_DIFF > 0) begin
+      // adjusted size is bigger than the raw size, pad with sign bits
+      assign control_signal_adjusted = {{(WIDTH_DIFF+1){control_signal_raw[CONTROL_RAW_SIZE_INT-1]}},control_signal_raw[CONTROL_RAW_SIZE_INT-2:0]};
+    end else begin
+      // adjusted size is smaller than the raw size, truncate and keep sign
+      assign control_signal_adjusted = {control_signal_raw[CONTROL_RAW_SIZE_INT-1],control_signal_raw[CONTROL_WIDTH-2:0]};
+    end
+  endgenerate
+
+  assign control_out = control_signal_adjusted;
 endmodule
+

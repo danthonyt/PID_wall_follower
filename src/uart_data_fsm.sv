@@ -11,8 +11,8 @@ module uart_data_fsm #(parameter FIFO_RD_DATA_WIDTH=8) (
 	input  logic                          fifo_empty   ,
 	output logic                          fifo_rd_en
 );
-	parameter HEX_DIGITS          = FIFO_RD_DATA_WIDTH/4;
-	parameter HEX_DIGITS_PER_WORD = 8                   ;
+	localparam HEX_DIGITS          = FIFO_RD_DATA_WIDTH/4;
+	localparam HEX_DIGITS_PER_WORD = 8                   ;
 	typedef enum logic [3:0] {STATE_IDLE,STATE_READ_FIFO,STATE_UART_SEND_WORD,STATE_UART_WAIT_WORD,STATE_UART_SEND_COMMA,STATE_UART_WAIT_COMMA,STATE_UART_SEND_CR,STATE_UART_WAIT_CR,STATE_UART_SEND_LF,STATE_UART_WAIT_LF} states_t;
 	states_t state;
 	// 8 elements for first, second and third word, 2 element for commas, 2 elements for newline
