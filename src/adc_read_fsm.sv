@@ -24,7 +24,7 @@ module adc_read_fsm #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 		.count    (delay_count     ),
 		.done     (delay_count_done)
 	);
-	adc_lut i_adc_lut (.adc_data(adc_data), .distance_cm(distance_cm));
+	adc_lut i_adc_lut (.clk(clk),.reset(reset),.adc_data(adc_data), .distance_cm_out(distance_cm));
 
 	assign i2c_transaction_slave_addr = 7'h48;	// slave address of adc
 	assign delay_count_lim            = 6250000;
@@ -63,7 +63,7 @@ module adc_read_fsm #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					
 					i2c_transaction_start     <= 1;
 					i2c_transaction_rd_nwr    <= 0;
-					i2c_master_din            <= {8'h00,8'd0,8'd0};	// select data register to then read conversions
+					i2c_master_din            <= {8'h10,8'd0,8'd0};//{8'h00,8'd0,8'd0};	// select data register to then read conversions
 					i2c_transaction_bytes_num <= 1;
 					next_state                <= STATE_I2C_READ_ADC;
 					state                     <= STATE_I2C_TRANSACTION_WAIT;
@@ -74,7 +74,7 @@ module adc_read_fsm #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					i2c_transaction_rd_nwr    <= 1;
 					i2c_master_din            <= {8'h00,8'd0,8'd0};	// read adc data register
 					i2c_transaction_bytes_num <= 2;
-					next_state                <= STATE_I2C_READ_ADC; //STATE_50MS_DELAY;
+					next_state                <= STATE_50MS_DELAY; //STATE_50MS_DELAY;
 					state                     <= STATE_I2C_TRANSACTION_WAIT;
 				end
 				STATE_I2C_TRANSACTION_WAIT : begin

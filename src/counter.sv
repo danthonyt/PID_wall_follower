@@ -17,7 +17,7 @@ module counter (
 			count <= 0;
 			if (en) begin
 				count <= count + 1;
-				if (count == count_lim-1) begin 
+				if (count >= count_lim-1) begin 
 					count <= 0;
 					done <= 1;
 				end

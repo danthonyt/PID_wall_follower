@@ -12,9 +12,9 @@ module top (
 	input  logic tachometer_out_b_r,
 	// motor inputs/outputs
 	input  logic motor_en_sw       , // switch input for motor enable
-	output logic motor_en_l        , // enables both motors when high
-	output logic motor_en_r        ,
+	output logic motor_en          , // enables both motors when high
 	output logic motor_pwm_l       , // pwm drives left/right motor
+	output logic error_out,
 	output logic motor_pwm_r
 );
 
@@ -39,6 +39,8 @@ module top (
 	parameter MAX_BYTES_PER_TRANSACTION = 3;
 // dc motor has time constant = 100ms
 // pwm should be 100 Hz frequency
+
+
 //*********************************************************************************//
 //	SIGNAL DECLARATIONS
 //*********************************************************************************//
@@ -107,6 +109,7 @@ module top (
 	logic                             fifo_ir_empty;
 	logic                             fifo_ir_full ;
 // I2C
+	logic [                                   15:0] adc_data                                                 ;
 	logic                                           i2c_transaction_done                                     ;
 	logic [                                    7:0] i2c_master_dout           [0:MAX_BYTES_PER_TRANSACTION-1];
 	logic                                           i2c_transaction_start                                    ;
@@ -249,7 +252,7 @@ module top (
 	);
 
 
-	logic [15:0] adc_data;
+
 	adc_read_fsm #(.MAX_BYTES_PER_TRANSACTION(MAX_BYTES_PER_TRANSACTION)) i_adc_read_fsm (
 		.clk                       (clk                       ),
 		.reset                     (reset                     ),
@@ -260,13 +263,17 @@ module top (
 		.i2c_transaction_slave_addr(i2c_transaction_slave_addr),
 		.i2c_master_din            (i2c_master_din            ),
 		.i2c_transaction_bytes_num (i2c_transaction_bytes_num ),
-		.adc_data                  (adc_data),
+		.adc_data                  (adc_data                  ),
 		.distance_cm               (distance_cm_measured      )
 	);
 
 
-	logic error;
-	i2c_master #(.MAX_BYTES_PER_TRANSACTION(MAX_BYTES_PER_TRANSACTION)) i_i2c_master (
+	i2c_master #(
+		.MAX_BYTES_PER_TRANSACTION(MAX_BYTES_PER_TRANSACTION),
+		.LOW_CYCLES               (6000                     ),
+		.HIGH_CYCLES              (6000                     ),
+		.MINIMUM_HOLD_CYCLES      (200                      )
+	) i_i2c_master (
 		.clk                  (clk                       ),
 		.reset                (reset                     ),
 		.transaction_start    (i2c_transaction_start     ),
@@ -284,31 +291,31 @@ module top (
 
 
 	// Modules for testing design
-	
-	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_ltach_fifo (
-	// left tachometer pid feedback
-	.clk  (clk             ),
-	.rst  (reset           ),
-	.wr_en(fifo_ltach_wr_en),
-	.rd_en(fifo_ltach_rd_en),
-	.din  (fifo_ltach_din  ),
-	.dout (fifo_ltach_dout ),
-	.empty(fifo_ltach_empty),
-	.full (fifo_ltach_full )
+
+	fifo #(.DEPTH_POW_2(2), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_ltach_fifo (
+		// left tachometer pid feedback
+		.clk  (clk             ),
+		.rst  (reset           ),
+		.wr_en(fifo_ltach_wr_en),
+		.rd_en(fifo_ltach_rd_en),
+		.din  (fifo_ltach_din  ),
+		.dout (fifo_ltach_dout ),
+		.empty(fifo_ltach_empty),
+		.full (fifo_ltach_full )
 	);
 
-	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_rtach_fifo (
-	// left tachometer pid feedback
-	.clk  (clk             ),
-	.rst  (reset           ),
-	.wr_en(fifo_rtach_wr_en),
-	.rd_en(fifo_rtach_rd_en),
-	.din  (fifo_rtach_din  ),
-	.dout (fifo_rtach_dout ),
-	.empty(fifo_rtach_empty),
-	.full (fifo_rtach_full )
+	fifo #(.DEPTH_POW_2(2), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_rtach_fifo (
+		// left tachometer pid feedback
+		.clk  (clk             ),
+		.rst  (reset           ),
+		.wr_en(fifo_rtach_wr_en),
+		.rd_en(fifo_rtach_rd_en),
+		.din  (fifo_rtach_din  ),
+		.dout (fifo_rtach_dout ),
+		.empty(fifo_rtach_empty),
+		.full (fifo_rtach_full )
 	);
-	
+
 	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_IR)) i_ir_fifo (
 		// ir sensor pid feedback
 		.clk  (clk          ),
@@ -347,13 +354,21 @@ module top (
 		.done     (uart_tx_done  )
 	);
 
-
-
+/*
+	ila_0 ila_adc (
+		.clk   (clk                 ), // input wire clk
+		
+		
+		.probe0(error               ), // input wire [0:0]  probe0
+		.probe1(transaction_done    ), // input wire [0:0]  probe1
+		.probe2(adc_data            ), // input wire [15:0]  probe2
+		.probe3(distance_cm_measured)  // input wire [6:0]  probe3
+	);
+	*/
 //*********************************************************************************//
 // SIGNAL ASSIGNMENTS
 //*********************************************************************************//
-	assign motor_en_l           = motor_en_sw;
-	assign motor_en_r           = motor_en_sw;
+	assign motor_en             = motor_en_sw;
 	assign k_p_tach             = 16'h0F00;
 	assign k_i_tach             = 0;
 	assign k_d_tach             = 0;
@@ -374,9 +389,16 @@ module top (
 
 	assign fifo_ltach_din   = {22'd0,rpm_measured_l,{15{duty_cycle_offset_l[PWM_RESOLUTION]}},duty_cycle_offset_l,{21{rpm_error_l[RPM_RESOLUTION-1]}},rpm_error_l,16'd0,duty_cycle_l};
 	assign fifo_rtach_din   = {22'd0,rpm_measured_r,{15{duty_cycle_offset_r[PWM_RESOLUTION]}},duty_cycle_offset_r,{21{rpm_error_r[RPM_RESOLUTION-1]}},rpm_error_r,16'd0,duty_cycle_r};
-	//assign fifo_ir_din   = {25'd0,distance_cm_measured,{21{rpm_offset[RPM_RESOLUTION]}},rpm_offset};
-	assign fifo_ir_din   = {16'd0,adc_data,{21{rpm_offset[RPM_RESOLUTION]}},rpm_offset};
-	assign fifo_ir_wr_en = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_ir_full & motor_en_sw;
+	assign fifo_ir_din      = {16'd0,adc_data,{21{rpm_offset[RPM_RESOLUTION]}},rpm_offset};
+	assign fifo_ir_wr_en    = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_ir_full & motor_en_sw;
 	assign fifo_ltach_wr_en = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_ltach_full & motor_en_sw;
 	assign fifo_rtach_wr_en = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_rtach_full & motor_en_sw;
+
+	always_ff @(posedge clk or posedge reset) begin 
+		if(reset) begin
+			error_out <= 1;
+		end else begin
+			if (error) error_out <= 0; 
+		end
+	end
 endmodule

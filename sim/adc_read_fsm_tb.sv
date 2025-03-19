@@ -9,6 +9,7 @@ module adc_read_fsm_tb ();
 	logic [6:0] i2c_transaction_slave_addr           ;
 	logic [7:0] i2c_master_din               [0:2]        ;
 	logic  [$clog2(3+1)-1:0] i2c_transaction_bytes_num;
+	typedef enum logic [3:0] {STATE_RESET,STATE_I2C_MODIFY_CONFIG,STATE_I2C_SELECT_DATA_REG,STATE_I2C_READ_ADC,STATE_I2C_TRANSACTION_WAIT,STATE_50MS_DELAY} states_t;
 	adc_read_fsm #(.MAX_BYTES_PER_TRANSACTION(3)) i_adc_read_fsm (
 		.clk                       (clk                       ),
 		.reset                     (reset                     ),
@@ -33,9 +34,13 @@ module adc_read_fsm_tb ();
 		i2c_master_dout = {1,2,3};
 		#(CLK_PERIOD*3);
 		reset = 0;
-		i2c_transaction_done = 1;
+		i2c_transaction_done = 0;
+		//repeat(100) begin
+			if(i_adc_read_fsm.state == STATE_I2C_TRANSACTION_WAIT) begin
+				#1ms;
+			end
+		//end
 		#(CLK_PERIOD*100);
-		#100ms;
 		$finish;
 	end
 endmodule
