@@ -30,7 +30,7 @@ module tachometer_interface #(parameter EDGE_COUNT_MAX = 300)(
       if (clock_cycle_cnt >= (1250000-1)) begin
         edge_count <= 0;
         clock_cycle_cnt <= 0;
-        actual_rpm_out  <= (edge_count<<2)+(edge_count>>3)+(edge_count>>5)+(edge_count>>7); // pulses * 100.0010101 = 4.16 * pulses ~ 4.17*pulses
+        actual_rpm_out  <= (edge_count<<2); // round to 4 * pulses
       end
     end
   end

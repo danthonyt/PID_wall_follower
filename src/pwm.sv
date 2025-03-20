@@ -3,6 +3,7 @@ module pwm #(parameter R=10) (
   input  logic        reset  ,
   input  logic [ R:0] duty   ,
   // dvsr + 1 = system freq. / (2^R * desired pwm freq.)
+  // want a 100 hz pwm frequency
   // divisor of zero is the same as divide by 1 clock divider
   input  logic [31:0] dvsr   ,
   output logic        pwm_out

@@ -23,7 +23,7 @@ module pid_controller #(
   output logic signed   [              CONTROL_WIDTH-1:0] control_out
 );
 
-  
+
   localparam                                         U_SIZE_INT              = PV_WIDTH+PID_INT_WIDTH-1          ;
   localparam                                         U_SIZE_FRAC             = PID_FRAC_WIDTH*2                  ;
   localparam                                         CONTROL_RAW_SIZE_INT    = U_SIZE_INT+1                      ;
@@ -69,7 +69,18 @@ module pid_controller #(
               // final output
               control_signal_raw <= u_p + u_i + u_d;
               prev_error_fp      <= error_fp;
+            end else begin
+              // proportional
+              u_p                <= 0;
+              // integral
+              u_i                <= 0;
+              // derivative
+              u_d                <= 0;
+              // final output
+              control_signal_raw <= 0;
+              prev_error_fp      <= 0;
             end
+
           end
         end
     end

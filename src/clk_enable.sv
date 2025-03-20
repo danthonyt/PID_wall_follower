@@ -10,7 +10,7 @@ module clk_enable #(
 	always_ff @(posedge clk_in or posedge reset_in) begin
 		if(reset_in) begin
 			clk_en  <= 0;
-			counter = 0;
+			counter <= 0;
 		end else begin
 			if (counter == DIVISOR) begin
 				counter <= 0;
