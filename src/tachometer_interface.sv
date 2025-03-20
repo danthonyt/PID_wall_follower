@@ -1,36 +1,36 @@
-module tachometer_interface (
-  input  logic       clk_in             , // 125 MHz clock
-  input  logic       clk_en             ,
-  input  logic       reset_in           ,
-  input  logic       tachometer_pulse_in, // pulse from tachometer
-  output logic [9:0] actual_rpm_out       // actual rpm of motor
+module tachometer_interface #(parameter EDGE_COUNT_MAX = 300)(
+  input  logic       clk_in          , // 125 MHz clock
+  input  logic       reset_in        ,
+  input  logic       tachometer_out_a,
+  input  logic       tachometer_out_b,
+  output logic [9:0] actual_rpm_out    // actual rpm of motor
 );
-  int   unsigned rising_edge_cnt      ;
-  int   unsigned clock_cycle_cnt      ;
-  logic          prev_tachometer_pulse;
-  // we are counting the number of pulses every 10ms
-  // RPM = (x pulses  / 360 pulses/rev / 0.05 s) * ( 60 s / 1 min) = 3.33 * x rev/min is approx 2x + x + x/4 + x/16
+  // 
+  longint   unsigned clock_cycle_cnt;
+  logic [$clog2(EDGE_COUNT_MAX+1)-1:0] edge_count;
+  logic          prev_out_a     ;
+  logic          prev_out_b     ;
+
+  logic is_edge;
+  assign is_edge = (tachometer_out_a ^ prev_out_a) | (tachometer_out_b ^ prev_out_b);
+  // we are counting the total rising and falling edges of pulses every 10ms
+  // using 4x decoding scheme RPM = (x pulses / 1440 pulses/rev / 0.01s )* (60s/1min) = 4.17 * x (pulses in 10ms)
   always_ff @(posedge clk_in or posedge reset_in) begin
     if(reset_in) begin
-      rising_edge_cnt       <= 0;
-      prev_tachometer_pulse <= 0;
-      clock_cycle_cnt       <= 0;
-      actual_rpm_out        <= 0;
+      edge_count      <= 0;
+      prev_out_a      <= 0;
+      prev_out_b      <= 0;
+      clock_cycle_cnt <= 0;
+      actual_rpm_out  <= 0;
     end else begin
-      if (clk_en)begin
-        clock_cycle_cnt       <= clock_cycle_cnt + 1;
-        prev_tachometer_pulse <= tachometer_pulse_in;
-        // every rising edge is another pulse
-        if (tachometer_pulse_in && !prev_tachometer_pulse) rising_edge_cnt <= rising_edge_cnt + 1;
-        // 500 clock cycles at 10 KHz = 50ms period 
-        // maximum possible sampled RPM = max_clock_cycles/2 * 3.33 = 833 RPM
-        // 500 CLOCK CYCLES = 50 MS
-        if (clock_cycle_cnt == 500-1) begin
-          clock_cycle_cnt <= 0;
-          // RPM = 3.33 * num_pulses
-          actual_rpm_out  <= (rising_edge_cnt<<1) + rising_edge_cnt + (rising_edge_cnt>>2) + (rising_edge_cnt>>4);
-          rising_edge_cnt <= 0;
-        end
+      clock_cycle_cnt <= clock_cycle_cnt + 1;
+      prev_out_a      <= tachometer_out_a;
+      prev_out_b      <= tachometer_out_b;
+      if (is_edge) edge_count <= edge_count + 1;
+      if (clock_cycle_cnt >= (1250000-1)) begin
+        edge_count <= 0;
+        clock_cycle_cnt <= 0;
+        actual_rpm_out  <= (edge_count<<2)+(edge_count>>3)+(edge_count>>5)+(edge_count>>7); // pulses * 100.0010101 = 4.16 * pulses ~ 4.17*pulses
       end
     end
   end

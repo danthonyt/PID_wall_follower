@@ -1,9 +1,4 @@
-module i2c_master #(
-	parameter MAX_BYTES_PER_TRANSACTION=3,
-	parameter LOW_CYCLES=500,
-	parameter HIGH_CYCLES=500,
-	parameter MINIMUM_HOLD_CYCLES = 100
-	) (
+module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	input  logic                                           clk                                 ,
 	input  logic                                           reset                               ,
 	input  logic                                           transaction_start                   , // initiates a transaction
@@ -24,8 +19,8 @@ module i2c_master #(
 	logic [                                    7:0] dout_reg                 [0:MAX_BYTES_PER_TRANSACTION-1];
 	logic [$clog2(MAX_BYTES_PER_TRANSACTION+1)-1:0] transaction_bytes_num_reg                               ;
 	// counter signals
-	longint unsigned clock_cycle_counter;
-	longint unsigned delay_counter      ;
+	logic [10:0] clock_cycle_counter;
+	logic [10:0] delay_counter      ;
 	// fsm outputs
 	logic                                           scl_out,scl_out_actual;
 	logic                                           sda_out,sda_out_actual;
@@ -37,9 +32,19 @@ module i2c_master #(
 	// fsm state signals
 	typedef enum logic [3:0] {STATE_READY,STATE_START,STATE_ADDRESS,STATE_CHECK_ACK,STATE_SEND_ACK,STATE_NACK,STATE_WRITE,STATE_READ, STATE_STOP} states_t;
 	states_t state, next_state;
-	//localparam LOW_CYCLES          = 673;
-	//localparam HIGH_CYCLES         = 577;
-	//localparam MINIMUM_HOLD_CYCLES = 75 ;
+	// constants
+		// 5000 cycles for 50 khz
+	//localparam LOW_CYCLES          = 2500;
+	//localparam HIGH_CYCLES         = 2500;
+	// 2500 cycles for 50 khz
+	//localparam LOW_CYCLES          = 1250;
+	//localparam HIGH_CYCLES         = 1250;
+	//12,500 cycles for 10 khz scl
+	//localparam LOW_CYCLES          = 6250;
+	//localparam HIGH_CYCLES         = 6250;
+	localparam LOW_CYCLES          = 673;
+	localparam HIGH_CYCLES         = 577;
+	localparam MINIMUM_HOLD_CYCLES = 75 ;
 
 	assign scl_out_actual = scl_out ? 1'bz : 1'b0;
 	assign sda_out_actual = sda_out ? 1'bz : 1'b0;
@@ -198,12 +203,12 @@ module i2c_master #(
 				STATE_STOP : begin
 					if (delay_counter == 0) begin
 						sda_wr_en <= 1;
-						sda_out   <= 0;
+						sda_out <= 0;
 					end else if (delay_counter == LOW_CYCLES) begin // wait for at least 600 ns to allow next start condition
 						if(!error) dout             <= dout_reg;
-						transaction_done <= 1;
-						state            <= STATE_READY;
-						delay_en         <= 0;
+						transaction_done <=  1;
+						state <= STATE_READY;
+						delay_en <= 0;
 					end else if (delay_counter == LOW_CYCLES/2) begin	// wait at least 600 ns after scl is high
 						sda_wr_en <= 0;
 					end

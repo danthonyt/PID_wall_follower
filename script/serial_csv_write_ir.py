@@ -14,7 +14,7 @@ ser.reset_input_buffer()
 # Open the CSV file for writing
 with open('output.csv', mode='w', newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['Distance (cm)', 'RPM Offset', 'Time (ms)'])  # CSV header with time column
+    csv_writer.writerow(['Distance (cm)', 'RPM Offset', 'Distance error (cm)', 'Time (ms)'])  # CSV header with time column
 
     print('Reading from UART...')
     
@@ -34,18 +34,22 @@ with open('output.csv', mode='w', newline='') as csv_file:
                 line = line.decode('utf-8', errors='replace').strip()
                 print(f'Decoded line: {line}')
 
-                # Match two 8-digit hex numbers separated by a comma
-                match = re.fullmatch(r'([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8})', line)
+                # Match three 8-digit hex numbers separated by commas
+                match = re.fullmatch(r'([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8})', line)
                 if match:
                     distance_cm_measured = int(match.group(1), 16)
                     rpm_offset = int(match.group(2), 16)
+                    distance_cm_error = int(match.group(3), 16)
 
                     # Convert rpm_offset to signed 32-bit
                     if rpm_offset >= 0x80000000:
                         rpm_offset -= 0x100000000
+                    # Convert distance_cm_error to signed 32-bit
+                    if distance_cm_error >= 0x80000000:
+                        distance_cm_error -= 0x100000000
 
-                    print(f'Received: {line} -> Distance (cm): {distance_cm_measured}, RPM Offset: {rpm_offset}')
-                    csv_writer.writerow([distance_cm_measured, rpm_offset, time_ms])
+                    print(f'Received: {line} -> Distance (cm): {distance_cm_measured}, RPM Offset: {rpm_offset}, Distance Error (cm) {distance_cm_error}')
+                    csv_writer.writerow([distance_cm_measured, rpm_offset, distance_cm_error, time_ms])
 
                     # Increment the time by 50ms
                     time_ms += 50
@@ -62,6 +66,7 @@ try:
     plt.figure(figsize=(10, 6))
     plt.plot(data['Time (ms)'], data['Distance (cm)'], marker='o', linestyle='-', color='b', label='Distance (cm)')
     plt.plot(data['Time (ms)'], data['RPM Offset'], marker='x', linestyle='--', color='r', label='RPM Offset')
+    plt.plot(data['Time (ms)'], data['Distance error (cm)'], marker='^', linestyle=':', color='g', label='Distance error')
     plt.xlabel('Time (ms)')
     plt.ylabel('Values')
     plt.title('Distance and RPM Offset vs Time')

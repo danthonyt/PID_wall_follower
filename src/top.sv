@@ -1,6 +1,10 @@
 module top (
 	input  logic clk               ,
 	input  logic reset             ,
+	// pid tuning buttons
+	input  logic p_incr_btn        ,
+	input  logic i_incr_btn        ,
+	input  logic d_incr_btn        ,
 	// i2c interface
 	inout  logic scl_pin           ,
 	inout  logic sda_pin           ,
@@ -8,13 +12,14 @@ module top (
 	output logic uart_serial_tx    , // sends PID error data
 	input  logic uart_en_sw        , // enables uart communication
 	// tachometer inputs
+	input  logic tachometer_out_a_l,
+	input  logic tachometer_out_a_r,
 	input  logic tachometer_out_b_l, // use to measure pwm of left/right motor
 	input  logic tachometer_out_b_r,
 	// motor inputs/outputs
 	input  logic motor_en_sw       , // switch input for motor enable
 	output logic motor_en          , // enables both motors when high
 	output logic motor_pwm_l       , // pwm drives left/right motor
-	output logic error_out,
 	output logic motor_pwm_r
 );
 
@@ -28,13 +33,16 @@ module top (
 	parameter PID_WALL_FRAC_WIDTH = 8               ;
 	parameter PV_WALL_WIDTH       = DIST_RESOLUTION ;
 	parameter CONTROL_WALL_WIDTH  = RPM_RESOLUTION+1;
+	parameter MAX_RPM_OFFSET      = 15              ;
 	// tachometer PID parameters
+	parameter EDGE_COUNT_MAX          = 500             ;
 	parameter PID_TACH_INT_WIDTH      = 8               ;
 	parameter PID_TACH_FRAC_WIDTH     = 8               ;
 	parameter PV_TACH_WIDTH           = RPM_RESOLUTION  ;
 	parameter CONTROL_TACH_WIDTH      = PWM_RESOLUTION+1;
-	parameter FIFO_RD_DATA_WIDTH_TACH = 32*4            ;
-	parameter FIFO_RD_DATA_WIDTH_IR   = 32*2            ;
+	parameter FIFO_RD_DATA_WIDTH_TACH = 32              ;
+	parameter FIFO_RD_DATA_WIDTH_IR   = 32              ;
+	parameter FIFO_RD_DATA_WIDTH      = 32*3            ;
 	// I2C
 	parameter MAX_BYTES_PER_TRANSACTION = 3;
 // dc motor has time constant = 100ms
@@ -45,10 +53,10 @@ module top (
 //	SIGNAL DECLARATIONS
 //*********************************************************************************//
 	// clock enable
-	logic clk_en_100hz    ;
-	logic clk_en_20hz     ;
-	logic clk_en_10khz    ;
-	logic prev_clk_en_20hz;
+	logic clk_en_100hz     ;
+	logic clk_en_32hz      ;
+	logic prev_clk_en_32hz ;
+	logic prev_clk_en_100hz;
 	// pwm
 	logic unsigned [PWM_RESOLUTION-1:0] duty_cycle_l                 ;
 	logic unsigned [PWM_RESOLUTION-1:0] duty_cycle_r                 ;
@@ -108,40 +116,43 @@ module top (
 	logic [FIFO_RD_DATA_WIDTH_IR-1:0] fifo_ir_dout ;
 	logic                             fifo_ir_empty;
 	logic                             fifo_ir_full ;
-// I2C
-	logic [                                   15:0] adc_data                                                 ;
-	logic                                           i2c_transaction_done                                     ;
-	logic [                                    7:0] i2c_master_dout           [0:MAX_BYTES_PER_TRANSACTION-1];
-	logic                                           i2c_transaction_start                                    ;
-	logic                                           i2c_transaction_rd_nwr                                   ;
-	logic [                                    6:0] i2c_transaction_slave_addr                               ;
-	logic [                                    7:0] i2c_master_din            [0:MAX_BYTES_PER_TRANSACTION-1];
-	logic [$clog2(MAX_BYTES_PER_TRANSACTION+1)-1:0] i2c_transaction_bytes_num                                ;
 // uart
-	logic       uart_tx_done ;
-	logic       uart_start_tx;
-	logic [7:0] uart_tx_din  ;
+	logic                          uart_tx_done   ;
+	logic                          uart_start_tx  ;
+	logic [                   7:0] uart_tx_din    ;
+	logic [FIFO_RD_DATA_WIDTH-1:0] fifo_uart_dout ;
+	logic                          fifo_uart_rd_en;
+	logic                          fifo_uart_empty;
+// i2c
+	logic [15:0] adc_data;
 
 
 //*********************************************************************************//
 //	MODULE INSTANTIATIONS
 //*********************************************************************************//
+
+	ila_0 your_instance_name (
+		.clk   (clk                 ), // input wire clk
+		
+		
+		.probe0(distance_cm_measured), // input wire [6:0]  probe0
+		.probe1(rpm_measured_l      ), // input wire [9:0]  probe1
+		.probe2(rpm_measured_r      ), // input wire [9:0]  probe2
+		.probe3(clk_en_32hz         ), // input wire [0:0]  probe3
+		.probe4(duty_cycle_l        ), // input wire [16:0]  probe4
+		.probe5(k_p_wall        )  // input wire [16:0]  probe5
+	);
+
 	clk_enable #(.DIVISOR(1249999)) i_clk_enable_100hz (
 		.clk_in  (clk         ),
 		.reset_in(reset       ),
 		.clk_en  (clk_en_100hz)
 	);
 
-	clk_enable #(.DIVISOR(6249999)) i_clk_enable_20hz (
+	clk_enable #(.DIVISOR(3910000-1)) i_clk_enable_32hz (
 		.clk_in  (clk        ),
 		.reset_in(reset      ),
-		.clk_en  (clk_en_20hz)
-	);
-
-	clk_enable #(.DIVISOR(12499)) i_clk_enable_10khz (
-		.clk_in  (clk         ),
-		.reset_in(reset       ),
-		.clk_en  (clk_en_10khz)
+		.clk_en  (clk_en_32hz)
 	);
 
 	pwm #(.R(PWM_RESOLUTION-1)) i_pwm_l (
@@ -160,20 +171,20 @@ module top (
 		.pwm_out(motor_pwm_r )
 	);
 
-	tachometer_interface i_tachometer_interface_l (
-		.clk_in             (clk               ),
-		.reset_in           (reset             ),
-		.clk_en             (clk_en_10khz      ),
-		.tachometer_pulse_in(tachometer_out_b_l),
-		.actual_rpm_out     (rpm_measured_l    )
+	tachometer_interface #(.EDGE_COUNT_MAX(EDGE_COUNT_MAX)) i_tachometer_interface_l (
+		.clk_in          (clk               ),
+		.reset_in        (reset             ),
+		.tachometer_out_a(tachometer_out_a_l),
+		.tachometer_out_b(tachometer_out_b_l),
+		.actual_rpm_out  (rpm_measured_l    )
 	);
 
-	tachometer_interface i_tachometer_interface_r (
-		.clk_in             (clk               ),
-		.reset_in           (reset             ),
-		.clk_en             (clk_en_10khz      ),
-		.tachometer_pulse_in(tachometer_out_b_r),
-		.actual_rpm_out     (rpm_measured_r    )
+	tachometer_interface #(.EDGE_COUNT_MAX(EDGE_COUNT_MAX)) i_tachometer_interface_r (
+		.clk_in          (clk               ),
+		.reset_in        (reset             ),
+		.tachometer_out_a(tachometer_out_a_r),
+		.tachometer_out_b(tachometer_out_b_r),
+		.actual_rpm_out  (rpm_measured_r    )
 	);
 
 	pid_controller #(
@@ -184,7 +195,7 @@ module top (
 	) i_pid_controller_tach_l (
 		.clk        (clk                ),
 		.reset      (reset              ),
-		.clk_en     (clk_en_20hz        ),
+		.clk_en     (clk_en_100hz       ),
 		.en         (motor_en_sw        ),
 		.k_p        (k_p_tach           ),
 		.k_i        (k_i_tach           ),
@@ -203,7 +214,7 @@ module top (
 	) i_pid_controller_tach_r (
 		.clk        (clk                ),
 		.reset      (reset              ),
-		.clk_en     (clk_en_20hz        ),
+		.clk_en     (clk_en_100hz       ),
 		.en         (motor_en_sw        ),
 		.k_p        (k_p_tach           ),
 		.k_i        (k_i_tach           ),
@@ -222,7 +233,7 @@ module top (
 	) i_pid_controller_ir (
 		.clk        (clk                 ),
 		.reset      (reset               ),
-		.clk_en     (clk_en_20hz         ),
+		.clk_en     (clk_en_32hz         ),
 		.en         (motor_en_sw         ),
 		.k_p        (k_p_wall            ),
 		.k_i        (k_i_wall            ),
@@ -236,10 +247,11 @@ module top (
 	motor_control #(
 		.RPM_RESOLUTION(RPM_RESOLUTION),
 		.PWM_RESOLUTION(PWM_RESOLUTION),
-		.MAX_RPM_OFFSET(40            )
+		.MAX_RPM_OFFSET(MAX_RPM_OFFSET)
 	) i_motor_control (
 		.clk                (clk                ),
-		.clk_en             (clk_en_20hz        ),
+		.clk_en_adc         (clk_en_32hz        ),
+		.clk_en_tach        (clk_en_100hz       ),
 		.reset              (reset              ),
 		.duty_cycle_offset_l(duty_cycle_offset_l), // TODO: Check connection ! Signal/port not matching : Expecting logic [PWM_RESOLUTION:0]  -- Found logic [CONTROL_TACH_WIDTH-1:0]
 		.duty_cycle_offset_r(duty_cycle_offset_r), // TODO: Check connection ! Signal/port not matching : Expecting logic [PWM_RESOLUTION:0]  -- Found logic [CONTROL_TACH_WIDTH-1:0]
@@ -251,98 +263,106 @@ module top (
 		.rpm_setpoint_r     (rpm_setpoint_r     )  // TODO: Check connection ! Signal/port not matching : Expecting logic [RPM_RESOLUTION-1:0]  -- Found logic [PV_TACH_WIDTH-1:0]
 	);
 
+	i2c_adc_fsm i_i2c_adc_fsm (.clk(clk), .reset(reset), .scl_pin(scl_pin), .sda_pin(sda_pin), .adc_data(adc_data));
+
+	adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(adc_data), .distance_cm_out(distance_cm_measured));
 
 
-	adc_read_fsm #(.MAX_BYTES_PER_TRANSACTION(MAX_BYTES_PER_TRANSACTION)) i_adc_read_fsm (
-		.clk                       (clk                       ),
-		.reset                     (reset                     ),
-		.i2c_transaction_done      (i2c_transaction_done      ),
-		.i2c_master_dout           (i2c_master_dout           ),
-		.i2c_transaction_start     (i2c_transaction_start     ),
-		.i2c_transaction_rd_nwr    (i2c_transaction_rd_nwr    ),
-		.i2c_transaction_slave_addr(i2c_transaction_slave_addr),
-		.i2c_master_din            (i2c_master_din            ),
-		.i2c_transaction_bytes_num (i2c_transaction_bytes_num ),
-		.adc_data                  (adc_data                  ),
-		.distance_cm               (distance_cm_measured      )
+
+/*
+	genvar i;
+	generate
+	for (i = 0; i < 4; i++) begin
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_ltach_fifo (
+	// left tachometer pid feedback
+	.clk  (clk             ),
+	.rst  (reset           ),
+	.wr_en(fifo_ltach_wr_en),
+	.rd_en(fifo_ltach_rd_en),
+	.din  (fifo_ltach_din[i]),
+	.dout (fifo_ltach_dout[i] ),
+	.empty(fifo_ltach_empty),
+	.full (fifo_ltach_full )
 	);
-
-
-	i2c_master #(
-		.MAX_BYTES_PER_TRANSACTION(MAX_BYTES_PER_TRANSACTION),
-		.LOW_CYCLES               (6000                     ),
-		.HIGH_CYCLES              (6000                     ),
-		.MINIMUM_HOLD_CYCLES      (200                      )
-	) i_i2c_master (
-		.clk                  (clk                       ),
-		.reset                (reset                     ),
-		.transaction_start    (i2c_transaction_start     ),
-		.rd_nwr               (i2c_transaction_rd_nwr    ),
-		.scl_pin              (scl_pin                   ),
-		.sda_pin              (sda_pin                   ),
-		.slave_addr           (i2c_transaction_slave_addr),
-		.din                  (i2c_master_din            ),
-		.transaction_bytes_num(i2c_transaction_bytes_num ),
-		.dout                 (i2c_master_dout           ),
-		.transaction_done     (i2c_transaction_done      ),
-		.error                (error                     )
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_rtach_fifo (
+	// left tachometer pid feedback
+	.clk  (clk               ),
+	.rst  (reset             ),
+	.wr_en(fifo_rtach_wr_en  ),
+	.rd_en(fifo_rtach_rd_en  ),
+	.din  (fifo_rtach_din[i] ),
+	.dout (fifo_rtach_dout[i]),
+	.empty(fifo_rtach_empty  ),
+	.full (fifo_rtach_full   )
 	);
-
-
-
-	// Modules for testing design
-
-	fifo #(.DEPTH_POW_2(2), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_ltach_fifo (
+	if(i < 3) begin
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_ir_fifo (
+	// ir sensor pid feedback
+	.clk  (clk          ),
+	.rst  (reset        ),
+	.wr_en(fifo_ir_wr_en),
+	.rd_en(fifo_ir_rd_en),
+	.din  (fifo_ir_din[i]  ),
+	.dout (fifo_ir_dout[i] ),
+	.empty(fifo_ir_empty),
+	.full (fifo_ir_full )
+	);
+	end
+	end
+	endgenerate
+	*/
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_ltach_fifo (
 		// left tachometer pid feedback
 		.clk  (clk             ),
 		.rst  (reset           ),
 		.wr_en(fifo_ltach_wr_en),
-		.rd_en(fifo_ltach_rd_en),
+		.rd_en(fifo_uart_rd_en ),
 		.din  (fifo_ltach_din  ),
 		.dout (fifo_ltach_dout ),
 		.empty(fifo_ltach_empty),
 		.full (fifo_ltach_full )
 	);
-
-	fifo #(.DEPTH_POW_2(2), .DWIDTH(FIFO_RD_DATA_WIDTH_TACH)) i_rtach_fifo (
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_rtach_fifo (
 		// left tachometer pid feedback
 		.clk  (clk             ),
 		.rst  (reset           ),
 		.wr_en(fifo_rtach_wr_en),
-		.rd_en(fifo_rtach_rd_en),
+		.rd_en(fifo_uart_rd_en ),
 		.din  (fifo_rtach_din  ),
 		.dout (fifo_rtach_dout ),
 		.empty(fifo_rtach_empty),
 		.full (fifo_rtach_full )
 	);
-
-	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_IR)) i_ir_fifo (
+	fifo #(.DEPTH_POW_2(10), .DWIDTH(32)) i_ir_fifo (
 		// ir sensor pid feedback
-		.clk  (clk          ),
-		.rst  (reset        ),
-		.wr_en(fifo_ir_wr_en),
-		.rd_en(fifo_ir_rd_en),
-		.din  (fifo_ir_din  ),
-		.dout (fifo_ir_dout ),
-		.empty(fifo_ir_empty),
-		.full (fifo_ir_full )
+		.clk  (clk            ),
+		.rst  (reset          ),
+		.wr_en(fifo_ir_wr_en  ),
+		.rd_en(fifo_uart_rd_en),
+		.din  (fifo_ir_din    ),
+		.dout (fifo_ir_dout   ),
+		.empty(fifo_ir_empty  ),
+		.full (fifo_ir_full   )
 	);
 
-	uart_data_fsm #(.FIFO_RD_DATA_WIDTH(FIFO_RD_DATA_WIDTH_IR)) i_uart_data_fsm (
-		.clk          (clk             ),
-		.reset        (reset           ),
-		.fsm_en       (uart_en_sw      ),
-		.uart_tx_done (uart_tx_done    ),
-		.uart_start_tx(uart_start_tx   ),
-		.uart_tx_din  (uart_tx_din     ),
+
+	uart_data_fsm #(.FIFO_RD_DATA_WIDTH(FIFO_RD_DATA_WIDTH)) i_uart_data_fsm (
+		.clk          (clk            ),
+		.reset        (reset          ),
+		.fsm_en       (uart_en_sw     ),
+		.uart_tx_done (uart_tx_done   ),
+		.uart_start_tx(uart_start_tx  ),
+		.uart_tx_din  (uart_tx_din    ),
+		///*
+		.fifo_rd_data (fifo_uart_dout ),
+		.fifo_empty   (fifo_uart_empty),
+		.fifo_rd_en   (fifo_uart_rd_en)
+		//*/
 		/*
-		.fifo_rd_data (fifo_ltach_dout ),
-		.fifo_empty   (fifo_ltach_empty),
-		.fifo_rd_en   (fifo_ltach_rd_en),
+		.fifo_rd_data (fifo_ir_dout   ),
+		.fifo_empty   (fifo_ir_empty  ),
+		.fifo_rd_en   (fifo_ir_rd_en  ),
 		*/
-		.fifo_rd_data (fifo_ir_dout    ),
-		.fifo_empty   (fifo_ir_empty   ),
-		.fifo_rd_en   (fifo_ir_rd_en   )
 	);
 
 	uart_tx #(.DATA_WIDTH(8), .CLKS_PER_BIT(1085)) i_uart_tx (
@@ -354,51 +374,83 @@ module top (
 		.done     (uart_tx_done  )
 	);
 
-/*
-	ila_0 ila_adc (
-		.clk   (clk                 ), // input wire clk
-		
-		
-		.probe0(error               ), // input wire [0:0]  probe0
-		.probe1(transaction_done    ), // input wire [0:0]  probe1
-		.probe2(adc_data            ), // input wire [15:0]  probe2
-		.probe3(distance_cm_measured)  // input wire [6:0]  probe3
+
+	logic p_incr_btn_debounced;
+	logic i_incr_btn_debounced;
+	logic d_incr_btn_debounced;
+
+	debounce i_debounce_p (
+		.clk   (clk                 ),
+		.reset (reset               ),
+		.pb_in (p_incr_btn          ),
+		.pb_out(p_incr_btn_debounced)
 	);
-	*/
+
+	debounce i_debounce_i (
+		.clk   (clk                 ),
+		.reset (reset               ),
+		.pb_in (i_incr_btn          ),
+		.pb_out(i_incr_btn_debounced)
+	);
+
+	debounce i_debounce_d (
+		.clk   (clk                 ),
+		.reset (reset               ),
+		.pb_in (d_incr_btn          ),
+		.pb_out(d_incr_btn_debounced)
+	);
+
 //*********************************************************************************//
 // SIGNAL ASSIGNMENTS
 //*********************************************************************************//
-	assign motor_en             = motor_en_sw;
-	assign k_p_tach             = 16'h0F00;
-	assign k_i_tach             = 0;
-	assign k_d_tach             = 0;
-	assign k_p_wall             = 16'h0040;
-	assign k_i_wall             = 0;
-	assign k_d_wall             = 0;
+	assign motor_en = motor_en_sw;
+	assign k_p_tach = 16'h0F00;
+	assign k_i_tach = 0;
+	assign k_d_tach = 0;
+	//assign k_p_wall             = 16'h00F0;
+	
 	assign distance_cm_setpoint = 'd20;	// distance to wall should be 20 cm
-	assign base_rpm             = 100;
-
+	assign base_rpm             = 50;
+	always_ff @(posedge clk or posedge reset) begin
+		if (reset) begin
+			k_p_wall <= 16'h0080;
+			 k_i_wall <= 16'h0000;
+			k_d_wall             <= 16'h0100;
+		end else begin
+			if(p_incr_btn_debounced)
+				k_p_wall <= k_p_wall + 16'h0010;
+			else if (i_incr_btn_debounced)
+				k_i_wall <= k_i_wall + 16'h0010;
+			else if (d_incr_btn_debounced)
+				k_d_wall <= k_d_wall + 16'h0010;
+		end
+	end
 	// Logic for testing
 	always_ff @(posedge clk or posedge reset) begin
 		if (reset) begin
-			prev_clk_en_20hz <= 0;
+			prev_clk_en_32hz  <= 0;
+			prev_clk_en_100hz <= 0;
 		end else begin
-			prev_clk_en_20hz <= clk_en_20hz;
+			prev_clk_en_32hz  <= clk_en_32hz;
+			prev_clk_en_100hz <= clk_en_100hz;
 		end
 	end
+	assign fifo_ltach_din = {22'd0,rpm_measured_l};
+	assign fifo_rtach_din = {22'd0,rpm_measured_r};
+	assign fifo_ir_din    = {26'd0,distance_cm_measured};
+	/*
+	assign fifo_ltach_din[1] = {{15{duty_cycle_offset_l[PWM_RESOLUTION]}},duty_cycle_offset_l};
+	assign fifo_ltach_din[2] = {{21{rpm_error_l[RPM_RESOLUTION-1]}},rpm_error_l};
+	assign fifo_ltach_din[3] = {16'd0,duty_cycle_l};
+	assign fifo_rtach_din[1] = {{15{duty_cycle_offset_r[PWM_RESOLUTION]}},duty_cycle_offset_r};
+	assign fifo_rtach_din[2] = {{21{rpm_error_r[RPM_RESOLUTION-1]}},rpm_error_r};
+	assign fifo_rtach_din[3] = {16'd0,duty_cycle_r};
+	assign fifo_ir_din[1]    = {{21{rpm_offset[RPM_RESOLUTION]}},rpm_offset};
+	assign fifo_ir_din[2]    = {{24{distance_cm_error[DIST_RESOLUTION]}},distance_cm_error};
+	*/
+	assign fifo_ir_wr_en    = prev_clk_en_100hz & ~clk_en_100hz & ~fifo_ir_full & motor_en_sw;
+	assign fifo_ltach_wr_en = prev_clk_en_100hz & ~clk_en_100hz & ~fifo_ltach_full & motor_en_sw;
+	assign fifo_rtach_wr_en = prev_clk_en_100hz & ~clk_en_100hz & ~fifo_rtach_full & motor_en_sw;
 
-	assign fifo_ltach_din   = {22'd0,rpm_measured_l,{15{duty_cycle_offset_l[PWM_RESOLUTION]}},duty_cycle_offset_l,{21{rpm_error_l[RPM_RESOLUTION-1]}},rpm_error_l,16'd0,duty_cycle_l};
-	assign fifo_rtach_din   = {22'd0,rpm_measured_r,{15{duty_cycle_offset_r[PWM_RESOLUTION]}},duty_cycle_offset_r,{21{rpm_error_r[RPM_RESOLUTION-1]}},rpm_error_r,16'd0,duty_cycle_r};
-	assign fifo_ir_din      = {16'd0,adc_data,{21{rpm_offset[RPM_RESOLUTION]}},rpm_offset};
-	assign fifo_ir_wr_en    = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_ir_full & motor_en_sw;
-	assign fifo_ltach_wr_en = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_ltach_full & motor_en_sw;
-	assign fifo_rtach_wr_en = prev_clk_en_20hz & ~clk_en_20hz & ~fifo_rtach_full & motor_en_sw;
-
-	always_ff @(posedge clk or posedge reset) begin 
-		if(reset) begin
-			error_out <= 1;
-		end else begin
-			if (error) error_out <= 0; 
-		end
-	end
+	assign fifo_uart_dout = {fifo_ltach_dout,fifo_rtach_dout,fifo_ir_dout};
 endmodule
