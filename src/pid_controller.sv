@@ -44,46 +44,39 @@ module pid_controller #(
 
   always_ff @(posedge clk, posedge reset)
     begin
-      if (reset)
-        begin
-          // proportional
-          u_p                <= 0;
-          // integral
-          u_i                <= 0;
-          // derivative
-          u_d                <= 0;
-          // final output
-          control_signal_raw <= 0;
-          prev_error_fp      <= 0;
-        end
-      else
-        begin
-          if (clk_en) begin
-            if(en) begin
-              // proportional - u_p = k_p * error
-              u_p                <= k_p_signed * error_fp;
-              // integral - u_i = u_i + k_i * delta
-              u_i                <= u_i + (k_i_signed * error_fp);
-              // derivative - u_d = k_d * (error[n] - error[n-1])
-              u_d                <= k_d_signed * (error_fp - prev_error_fp);
-              // final output
-              control_signal_raw <= u_p + u_i + u_d;
-              prev_error_fp      <= error_fp;
-            end else begin
-              // proportional
-              u_p                <= 0;
-              // integral
-              u_i                <= 0;
-              // derivative
-              u_d                <= 0;
-              // final output
-              control_signal_raw <= 0;
-              prev_error_fp      <= 0;
-            end
-
-          end
-        end
+      if (reset) begin
+        // proportional
+        u_p                <= 0;
+        // integral
+        u_i                <= 0;
+        // derivative
+        u_d                <= 0;
+        // final output
+        control_signal_raw <= 0;
+        prev_error_fp      <= 0;
+      end else if (~en) begin
+        // proportional
+        u_p                <= 0;
+        // integral
+        u_i                <= 0;
+        // derivative
+        u_d                <= 0;
+        // final output
+        control_signal_raw <= 0;
+        prev_error_fp      <= 0;
+      end else if (clk_en) begin
+        // proportional - u_p = k_p * error
+        u_p                <= k_p_signed * error_fp;
+        // integral - u_i = u_i + k_i * delta
+        u_i                <= u_i + (k_i_signed * error_fp);
+        // derivative - u_d = k_d * (error[n] - error[n-1])
+        u_d                <= k_d_signed * (error_fp - prev_error_fp);
+        // final output
+        control_signal_raw <= u_p + u_i + u_d;
+        prev_error_fp      <= error_fp;
+      end
     end
+
 
   generate
     if (WIDTH_DIFF == 0) begin

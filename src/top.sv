@@ -118,7 +118,7 @@ module top (
 // i2c
 	logic [15:0] adc_data;
 
-	logic [7:-8] modify_p;
+	logic [7:-8] sig_1,sig_2,sig_3;
 
 //*********************************************************************************//
 //	MODULE INSTANTIATIONS
@@ -372,25 +372,29 @@ module top (
 		.b_signed_in  (duty_cycle_offset_r),
 		.sum_out      (next_duty_cycle_r  )
 	);
+	/*
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(TACH_COUNT_RESOLUTION)) i_saturating_adder_signed_unsigned_tr (
-		.a_unsigned_in(tach_count_setpoint_r     ),
+		.a_unsigned_in(base_tach_count     ),
 		.b_signed_in  (tach_count_offset         ),
 		.sum_out      (next_tach_count_setpoint_r)
 	);
 	saturating_subtractor_signed_unsigned #(.UNSIGNED_WIDTH(TACH_COUNT_RESOLUTION)) i_saturating_subtractor_signed_unsigned_tl (
-		.a_unsigned_in(tach_count_setpoint_l     ),
+		.a_unsigned_in(base_tach_count     ),
 		.b_signed_in  (tach_count_offset         ),
 		.sum_out      (next_tach_count_setpoint_l)
 	);
+	*/
+	assign next_tach_count_setpoint_l = 7;
+	assign next_tach_count_setpoint_r = 7;
 
 
 //*********************************************************************************//
 // SIGNAL ASSIGNMENTS
 //*********************************************************************************//
 	assign motor_en = motor_en_sw;
-	assign k_p_tach = modify_p;
-	assign k_i_tach = 16'h0000;
-	assign k_d_tach = 0;
+	assign k_p_tach = sig_1;
+	assign k_i_tach = sig_2;
+	assign k_d_tach = sig_3;
 
 	assign k_p_wall = 16'h0040;
 	assign k_i_wall = 0;
@@ -402,14 +406,16 @@ module top (
 
 	always_ff @(posedge clk or posedge reset) begin
 		if (reset) begin
-			modify_p <= 16'h0400;
+			sig_1 <= 16'h0F00;
+			sig_2 <= 16'h0000;
+			sig_3 <= 16'h0000;
 		end else begin
-			if(p_incr_btn_debounced)
-				modify_p <= modify_p + 16'h0001;
+			if(p_incr_btn_debounced) 
+				sig_1 <= sig_1 + 16'h0100;
 			else if (i_incr_btn_debounced)
-				modify_p <= modify_p + 16'h0010;
+				sig_2 <= sig_2 + 16'h0100;
 			else if (d_incr_btn_debounced)
-				modify_p <= modify_p + 16'h0100;
+				sig_3 <= sig_3 + 16'h0100;
 		end
 	end
 	// Logic for testing
@@ -422,8 +428,8 @@ module top (
 			prev_clk_en_100hz <= clk_en_100hz;
 		end
 	end
-	assign fifo_ltach_din = {{24'd0,tach_count_measured_l},{24'd0,tach_count_setpoint_l},{{23{tach_count_error_l[PWM_RESOLUTION]}},tach_count_error_l}};
-	assign fifo_rtach_din = {{24'd0,tach_count_measured_r},{24'd0,tach_count_setpoint_r},{{23{tach_count_error_r[PWM_RESOLUTION]}},tach_count_error_r}};
+	assign fifo_ltach_din = {{24'd0,tach_count_measured_l},{24'd0,tach_count_setpoint_l},{{23{tach_count_error_l[TACH_COUNT_RESOLUTION]}},tach_count_error_l}};
+	assign fifo_rtach_din = {{24'd0,tach_count_measured_r},{24'd0,tach_count_setpoint_r},{{23{tach_count_error_r[TACH_COUNT_RESOLUTION]}},tach_count_error_r}};
 	assign fifo_ir_din    = {{26'd0,distance_cm_measured},{26'd0,distance_cm_setpoint}};
 
 	assign fifo_ir_wr_en    = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en_sw;
