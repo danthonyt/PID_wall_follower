@@ -14,7 +14,7 @@ ser.reset_input_buffer()
 # Open the CSV file for writing
 with open('tachometer_trial.csv', mode='w', newline='') as csv_file:
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(['L Wheel Angular Velocity (RPM)', 'L Setpoint (RPM)', 'L Duty Cycle Offset', 'R Wheel Angular Velocity (RPM)', 'R Setpoint (RPM)','R Duty Cycle Offset', 'Time (ms)'])
+    csv_writer.writerow(['L Wheel Tachometer Count', 'L Tachometer Count Setpoint', 'L Tachometer Count Error', 'R Wheel Tachometer Count', 'R Tachometer Count Setpoint', 'R Tachometer Count Error', 'Time (ms)'])
 
     print('Reading from UART...')
     
@@ -35,20 +35,20 @@ with open('tachometer_trial.csv', mode='w', newline='') as csv_file:
                 # Match six 8-digit hex numbers separated by commas
                 match = re.fullmatch(r'([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8}),([0-9A-Fa-f]{8})', line)
                 if match:
-                    l_wheel_rpm = int(match.group(1), 16)
-                    l_setpoint = int(match.group(2), 16)
-                    duty_cycle_l_offset = int(match.group(3), 16)
-                    r_wheel_rpm = int(match.group(4), 16)
-                    r_setpoint = int(match.group(5), 16)
-                    duty_cycle_r_offset = int(match.group(6), 16)
+                    l_tach_count = int(match.group(1), 16)
+                    l_tach_count_setpoint = int(match.group(2), 16)
+                    l_tach_count_error = int(match.group(3), 16)
+                    r_tach_count = int(match.group(4), 16)
+                    r_tach_count_setpoint = int(match.group(5), 16)
+                    r_tach_count_error = int(match.group(6), 16)
+                    if l_tach_count_error >=   0x80000000:  # If the value is negative
+                        l_tach_count_error -= 0x100000000
 
-                    if duty_cycle_l_offset & (1 << 31):
-                        duty_cycle_l_offset -= (1 << 32)
-                    if duty_cycle_r_offset & (1 << 31):
-                        duty_cycle_r_offset -= (1 << 32)
+                    if r_tach_count_error >= 0x80000000:  # If the value is negative
+                        r_tach_count_error -= 0x100000000
 
-                    print(f'Received: {line} -> L Wheel RPM: {l_wheel_rpm}, L Setpoint: {l_setpoint}, L Duty Cycle Offset: {duty_cycle_l_offset}, R Wheel RPM: {r_wheel_rpm}, R Setpoint: {r_setpoint}, R Duty Cycle Offset: {duty_cycle_r_offset}')
-                    csv_writer.writerow([l_wheel_rpm, l_setpoint, duty_cycle_l_offset, r_wheel_rpm, r_setpoint, duty_cycle_r_offset, time_ms])
+                    print(f'Received: {line} -> L Wheel Tach Count: {l_tach_count}, L Setpoint: {l_tach_count_setpoint}, L Error: {l_tach_count_error}, R Wheel Tach Count: {r_tach_count}, R Setpoint: {r_tach_count_setpoint}, R Error: {r_tach_count_error}')
+                    csv_writer.writerow([l_tach_count, l_tach_count_setpoint, l_tach_count_error, r_tach_count, r_tach_count_setpoint, r_tach_count_error, time_ms])
 
                     # Increment the time by 10 ms
                     time_ms += 10
@@ -65,33 +65,32 @@ try:
 
     # Plotting Left Wheel Data
     plt.figure(figsize=(10, 6))
-    plt.plot(data['Time (ms)'], data['L Wheel Angular Velocity (RPM)'], marker='o', linestyle='-', color='b', label='L Wheel Angular Velocity (RPM)')
-    plt.plot(data['Time (ms)'], data['L Setpoint (RPM)'], marker='^', linestyle=':', color='g', label='L Setpoint (RPM)')
+    plt.plot(data['Time (ms)'], data['L Wheel Tachometer Count'], marker='o', linestyle='-', color='b', label='L Wheel Tachometer Count')
+    plt.plot(data['Time (ms)'], data['L Tachometer Count Setpoint'], marker='^', linestyle=':', color='g', label='L Setpoint')
     plt.xlabel('Time (ms)')
-    plt.ylabel('Angular Velocity (RPM)')
-    plt.title('Left Wheel Angular Velocity (RPM) vs Time')
+    plt.ylabel('Tachometer Count')
+    plt.title('Left Wheel Tachometer Count vs Time')
     plt.legend()
     plt.grid(True)
     plt.show()
 
     # Plotting Right Wheel Data
     plt.figure(figsize=(10, 6))
-    plt.plot(data['Time (ms)'], data['R Wheel Angular Velocity (RPM)'], marker='x', linestyle='--', color='r', label='R Wheel Angular Velocity (RPM)')
-    plt.plot(data['Time (ms)'], data['R Setpoint (RPM)'], marker='v', linestyle=':', color='c', label='R Setpoint (RPM)')
-    
+    plt.plot(data['Time (ms)'], data['R Wheel Tachometer Count'], marker='x', linestyle='--', color='r', label='R Wheel Tachometer Count')
+    plt.plot(data['Time (ms)'], data['R Tachometer Count Setpoint'], marker='v', linestyle=':', color='c', label='R Setpoint')
     plt.xlabel('Time (ms)')
-    plt.ylabel('Angular Velocity (RPM)')
-    plt.title('Right Wheel Angular Velocity (RPM) vs Time')
+    plt.ylabel('Tachometer Count')
+    plt.title('Right Wheel Tachometer Count vs Time')
     plt.legend()
     plt.grid(True)
     plt.show()
 
     plt.figure(figsize=(10, 6))
-    plt.plot(data['Time (ms)'], data['L Duty Cycle Offset'], marker='v', linestyle='-.', color='r', label='L Duty Cycle Offset')
-    plt.plot(data['Time (ms)'], data['R Duty Cycle Offset'], marker='o', linestyle='-.', color='b', label='R Duty Cycle Offset')
+    plt.plot(data['Time (ms)'], data['L Tachometer Count Error'], marker='v', linestyle='-.', color='r', label='L Tachometer Count Error')
+    plt.plot(data['Time (ms)'], data['R Tachometer Count Error'], marker='o', linestyle='-.', color='b', label='R Tachometer Count Error')
     plt.xlabel('Time (ms)')
-    plt.ylabel('Duty Cycle Offset')
-    plt.title('Duty Cycle Offset vs Time')
+    plt.ylabel('Tachometer Count Error')
+    plt.title('Tachometer Count Error vs Time')
     plt.legend()
     plt.grid(True)
     plt.show()

@@ -1,4 +1,4 @@
-module tachometer_interface_tb ();
+module tachometer_edge_counter_tb ();
   parameter EDGE_COUNT_MAX = 500;
   // Parameters
   time CLK_PERIOD = 8ns; // 125 Mhz clock
@@ -7,15 +7,16 @@ module tachometer_interface_tb ();
   logic       reset           ;
   logic       tachometer_out_a;
   logic       tachometer_out_b;
-  logic [9:0] actual_rpm_out  ;
-  tachometer_interface #(.EDGE_COUNT_MAX(EDGE_COUNT_MAX)) i_tachometer_interface (
-    .clk_in          (clk             ),
-    .reset_in        (reset           ),
-    .tachometer_out_a(tachometer_out_a),
-    .tachometer_out_b(tachometer_out_b),
-    .actual_rpm_out  (actual_rpm_out  )
-  );
+  logic [$clog2(300+1)-1:0] edge_count_o;
+tachometer_edge_counter i_tachometer_edge_counter (
+  .clk_in          (clk          ),
+  .reset_in        (reset        ),
+  .tachometer_out_a(tachometer_out_a),
+  .tachometer_out_b(tachometer_out_b),
+  .edge_count_o    (edge_count_o    )
+);
 
+  
 
 
 
@@ -35,7 +36,7 @@ module tachometer_interface_tb ();
       #CLK_PERIOD;
       reset = 0;
       @(posedge clk);
-      // around 6 pulses in 10 ms for 4.17*(6*4) = 
+      // 6 pulses in 10 ms means 24 edges
       repeat(6) begin
         tachometer_out_a = 1;
         #(CLK_PERIOD*3);
@@ -46,7 +47,8 @@ module tachometer_interface_tb ();
         tachometer_out_b = 1;
         #(CLK_PERIOD*3);
       end
-      @(i_tachometer_interface.clock_cycle_cnt==0);
+      @(i_tachometer_edge_counter.clock_cycle_cnt==0);
+      #(CLK_PERIOD*10);
       $finish;
     end
 endmodule
