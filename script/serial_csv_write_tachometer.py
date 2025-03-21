@@ -4,9 +4,10 @@ import re
 import time
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np  # Import numpy for FFT
 
 # Open the serial port
-ser = serial.Serial('/dev/ttyUSB0', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
+ser = serial.Serial('/dev/ttyUSB1', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
 
 # Flush any existing input data
 ser.reset_input_buffer()
@@ -85,6 +86,7 @@ try:
     plt.grid(True)
     plt.show()
 
+    # Plotting Tachometer Count Error Data
     plt.figure(figsize=(10, 6))
     plt.plot(data['Time (ms)'], data['L Tachometer Count Error'], marker='v', linestyle='-.', color='r', label='L Tachometer Count Error')
     plt.plot(data['Time (ms)'], data['R Tachometer Count Error'], marker='o', linestyle='-.', color='b', label='R Tachometer Count Error')
