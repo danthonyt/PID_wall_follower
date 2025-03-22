@@ -23,6 +23,9 @@ module saturating_adder_unsigned_signed_tb ();
 			b_signed_in = $random();
 			#100;
 		end
+		a_unsigned_in = 100;
+		b_signed_in = -10;
+		#100;
 		$finish;
 	end
 endmodule

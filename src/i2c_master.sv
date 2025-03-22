@@ -33,7 +33,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 	typedef enum logic [3:0] {STATE_READY,STATE_START,STATE_ADDRESS,STATE_CHECK_ACK,STATE_SEND_ACK,STATE_NACK,STATE_WRITE,STATE_READ, STATE_STOP} states_t;
 	states_t state, next_state;
 	// constants
-		// 5000 cycles for 50 khz
+	// 5000 cycles for 50 khz
 	//localparam LOW_CYCLES          = 2500;
 	//localparam HIGH_CYCLES         = 2500;
 	// 2500 cycles for 50 khz
@@ -74,14 +74,12 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 
 	// delay counter
 	always_ff @(posedge clk or posedge reset) begin
-		if(reset) begin
+		if(reset)
 			delay_counter <= 0;
-		end else begin
-			if (delay_en)
-				delay_counter <= delay_counter + 1;
-			else
-				delay_counter <= 0;
-		end
+		else if (~delay_en)
+			delay_counter <= 0;
+		else
+			delay_counter <= delay_counter + 1;
 	end
 
 
@@ -175,7 +173,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 						end else begin
 							current_transaction_byte_num <= current_transaction_byte_num + 1;
 							bit_count                    <= 0;
-							next_state                   <= (current_transaction_byte_num == transaction_bytes_num-1) ? STATE_STOP : STATE_WRITE;	// write or read transaction
+							next_state                   <= (current_transaction_byte_num == transaction_bytes_num_reg-1) ? STATE_STOP : STATE_WRITE;	// write or read transaction
 							state                        <= STATE_CHECK_ACK;
 						end
 					end
@@ -185,7 +183,7 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					if (bit_count == 8) begin
 						if (clock_cycle_counter == LOW_CYCLES/2) begin
 							state                        <= STATE_SEND_ACK;	// line up to start of next clock
-							next_state                   <= (current_transaction_byte_num == transaction_bytes_num-1) ? STATE_STOP: STATE_READ;
+							next_state                   <= (current_transaction_byte_num == transaction_bytes_num_reg-1) ? STATE_STOP: STATE_READ;
 							current_transaction_byte_num <= current_transaction_byte_num + 1;
 							bit_count                    <= 0;
 						end
@@ -203,12 +201,12 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 				STATE_STOP : begin
 					if (delay_counter == 0) begin
 						sda_wr_en <= 1;
-						sda_out <= 0;
+						sda_out   <= 0;
 					end else if (delay_counter == LOW_CYCLES) begin // wait for at least 600 ns to allow next start condition
 						if(!error) dout             <= dout_reg;
-						transaction_done <=  1;
-						state <= STATE_READY;
-						delay_en <= 0;
+						transaction_done <= 1;
+						state            <= STATE_READY;
+						delay_en         <= 0;
 					end else if (delay_counter == LOW_CYCLES/2) begin	// wait at least 600 ns after scl is high
 						sda_wr_en <= 0;
 					end

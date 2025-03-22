@@ -6,15 +6,15 @@ module adc_lut (
 );
 	logic [6:0] raw_distance_cm,adjusted_distance_cm_trunc;
 	logic [6:-8] adjusted_distance_cm,raw_distance_cm_fp;
-	logic [15:0] lut_distance_cm_threshold_arr[0:70];
+	logic  [15:0] lut_distance_cm_threshold_arr[0:69];
 	initial begin
 		$readmemh("adc_lookup.mem", lut_distance_cm_threshold_arr);  // Load HEX file into array
 	end
 
 	always_comb begin
 		raw_distance_cm = 10;
-		for (int i = 0; i < 71; i++) begin
-			if (raw_adc_data > lut_distance_cm_threshold_arr[i]) begin	// distance is found by comparing to expected values for each distance
+		for (int i = 0; i < 70; i++) begin
+			if ($signed({raw_adc_data[15],raw_adc_data}) > $signed({1'b0,lut_distance_cm_threshold_arr[i]})) begin	// distance is found by comparing to expected values for each distance
 				raw_distance_cm = i + 10;	// 10 cm has the highest voltage output and decreases as distance increases
 				break;
 			end;
@@ -30,7 +30,6 @@ module adc_lut (
 
 	assign raw_distance_cm_fp = {raw_distance_cm,8'd0};
 	// convert to distance to side of robot
-	assign adjusted_distance_cm = (raw_distance_cm_fp>>1) + (raw_distance_cm_fp>>3) + (raw_distance_cm_fp>>4) + (raw_distance_cm_fp>>6) +(raw_distance_cm_fp>>8);// cos(45)*x = 0.707*x = x*(1/2+1/8+1/16+1/64)
-												// = x>>1 + x>>3 + x>>4 + x>>6 +x>>8    0.707 ~ .10110101
+	assign adjusted_distance_cm = (raw_distance_cm_fp>>1) + (raw_distance_cm_fp>>3) + (raw_distance_cm_fp>>4) + (raw_distance_cm_fp>>6) +(raw_distance_cm_fp>>8);// cos(45)*x = 0.707*x = x*(1/2+1/8+1/16+1/64+1/256)
 	assign adjusted_distance_cm_trunc = adjusted_distance_cm[6:0];
 endmodule
