@@ -30,9 +30,9 @@ module pid_controller #(
   localparam signed                                             WIDTH_DIFF              = CONTROL_WIDTH-CONTROL_RAW_SIZE_INT; // difference between control output size and control signal size before truncation
   logic            signed [           PV_WIDTH:-PID_FRAC_WIDTH] error_fp,prev_error_fp;
   logic            signed [      PID_INT_WIDTH:-PID_FRAC_WIDTH] k_p_signed,k_i_signed,k_d_signed;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_p                                                         ;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_i                                                         ;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_d                                                         ;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_p,next_u_p                                                         ;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_i,next_u_i                                                         ;
+  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_d,next_u_d                                                         ;
   logic            signed [CONTROL_RAW_SIZE_INT-1:-U_SIZE_FRAC] control_signal_raw                                          ;
   logic            signed [                  CONTROL_WIDTH-1:0] control_signal_adjusted                                     ;
 
@@ -45,38 +45,29 @@ module pid_controller #(
   always_ff @(posedge clk, posedge reset)
     begin
       if (reset) begin
-        // proportional
         u_p                <= 0;
-        // integral
         u_i                <= 0;
-        // derivative
         u_d                <= 0;
-        // final output
         control_signal_raw <= 0;
         prev_error_fp      <= 0;
       end else if (~en) begin
-        // proportional
         u_p                <= 0;
-        // integral
         u_i                <= 0;
-        // derivative
         u_d                <= 0;
-        // final output
         control_signal_raw <= 0;
         prev_error_fp      <= 0;
       end else if (clk_en) begin
-        // proportional - u_p = k_p * error
-        u_p                <= k_p_signed * error_fp;
-        // integral - u_i = u_i + k_i * delta
-        u_i                <= u_i + (k_i_signed * error_fp);
-        // derivative - u_d = k_d * (error[n] - error[n-1])
-        u_d                <= k_d_signed * (error_fp - prev_error_fp);
-        // final output
-        control_signal_raw <= u_p + u_i + u_d;
+        u_p                <= next_u_p;
+        u_i                <= next_u_i;
+        u_d                <= next_u_d;
+        control_signal_raw <= next_u_p + next_u_i + next_u_d;
         prev_error_fp      <= error_fp;
       end
     end
 
+assign next_u_p = k_p_signed * error_fp;
+assign next_u_i = u_i + (k_i_signed * error_fp);
+assign next_u_d = k_d_signed * (error_fp - prev_error_fp);
 
   generate
     if (WIDTH_DIFF == 0) begin

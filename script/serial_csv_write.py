@@ -4,9 +4,10 @@ import re
 import time
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 # Open the serial port
-ser = serial.Serial('/dev/ttyUSB1', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
+ser = serial.Serial('/dev/ttyUSB0', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1)
 
 # Flush any existing input data
 ser.reset_input_buffer()
@@ -52,10 +53,10 @@ finally:
 # Plotting the data after collection
 try:
     data = pd.read_csv('wall_follower_trial.csv')
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 8))
 
     # Plot 1: Distance to Wall vs Time
-    plt.subplot(2, 1, 1)
+    plt.subplot(3, 1, 1)
     plt.plot(data['Time (ms)'], data['Wall Distance (cm)'], marker='o', linestyle='-', color='b', label='Distance to Wall')
     plt.plot(data['Time (ms)'], data['Setpoint (cm)'], marker='^', linestyle=':', color='g', label='Setpoint')
     plt.xlabel('Time (ms)')
@@ -63,6 +64,18 @@ try:
     plt.title('Distance to Wall vs Time')
     plt.legend()
     plt.grid(True)
+
+    # FFT of Wall Distance
+    plt.subplot(3, 1, 2)
+    distance_signal = data['Wall Distance (cm)'].values
+    fft_result = np.fft.fft(distance_signal)
+    freqs = np.fft.fftfreq(len(distance_signal), d=0.0313)  # Sampling interval (31.3 ms)
+    plt.plot(freqs[:len(freqs)//2], np.abs(fft_result[:len(fft_result)//2]), color='r', label='FFT Magnitude')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Magnitude')
+    plt.title('FFT of Wall Distance')
+    plt.grid(True)
+    plt.legend()
 
     plt.tight_layout()
     plt.show()

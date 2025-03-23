@@ -25,7 +25,7 @@ module top (
 	parameter PID_WALL_INT_WIDTH    = 16   ;
 	parameter PID_WALL_FRAC_WIDTH   = 0    ;
 	parameter BASE_DUTY             = 16384;
-	parameter MAX_DUTY_CYCLE_OFFSET = 4915 ;
+	parameter MAX_DUTY_CYCLE_OFFSET = 12288;
 	// tachometer PID parameters
 	parameter FIFO_RD_DATA_WIDTH_IR = 32*2;
 	// I2C
@@ -43,13 +43,15 @@ module top (
 	logic unsigned [PWM_RESOLUTION-1:0] duty_cycle_r,next_duty_cycle_r;
 	// tachometer
 // PID controller
-	logic signed [PWM_RESOLUTION:0] duty_cycle_offset;
+	logic signed [  PWM_RESOLUTION:0] duty_cycle_offset    ;
+	logic        [PWM_RESOLUTION-1:0] base_duty_cycle      ;
+	logic signed [  PWM_RESOLUTION:0] duty_cycle_offset_adj;
 	// Wall follower PID
 	logic unsigned [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] k_p                 ;
 	logic unsigned [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] k_i                 ;
 	logic unsigned [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] k_d                 ;
 	logic unsigned [                      DIST_RESOLUTION-1:0] distance_cm_setpoint;
-	logic unsigned [                      DIST_RESOLUTION-1:0] distance_cm_measured;
+	logic unsigned [                      DIST_RESOLUTION-1:0] distance_cm_measured,distance_cm_raw;
 	logic signed   [                        DIST_RESOLUTION:0] distance_cm_error   ;
 // FIFO signals
 
@@ -71,7 +73,8 @@ module top (
 	logic        btn_debounce[0:3];
 
 
-	logic [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] sig_0,next_sig_0;
+	logic [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] sig_0,sig_1,sig_2,
+		next_k_p,next_k_i,next_k_d;
 	logic [PID_WALL_INT_WIDTH-1:-PID_WALL_FRAC_WIDTH] res_0,res_1,res_2,res_3;
 
 	logic nand_bumper_btns          ;
@@ -81,6 +84,19 @@ module top (
 //*********************************************************************************//
 //	MODULE INSTANTIATIONS
 //*********************************************************************************//
+	ila_0 your_instance_name (
+		.clk   (clk                 ), // input wire clk
+		
+		
+		.probe0(clk_en_32hz         ), // input wire [0:0]  probe0
+		.probe1(k_p                 ), // input wire [15:0]  probe1
+		.probe2(k_i                 ), // input wire [15:0]  probe2
+		.probe3(k_d                 ), // input wire [15:0]  probe3
+		.probe4(distance_cm_measured), // input wire [6:0]  probe4
+		.probe5(duty_cycle_offset   ), // input wire [17:0]  probe5
+		.probe6(duty_cycle_l        ), // input wire [16:0]  probe6
+		.probe7(duty_cycle_r        )  // input wire [16:0]  probe7
+	);
 	clk_enable #(.DIVISOR(3910000-1)) i_clk_enable_32hz (
 		.clk_in  (clk        ),
 		.reset_in(reset      ),
@@ -127,7 +143,7 @@ module top (
 
 	i2c_adc_fsm i_i2c_adc_fsm (.clk(clk), .reset(reset), .scl_pin(scl_pin), .sda_pin(sda_pin), .adc_data(adc_data));
 
-	adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(adc_data), .distance_cm_out(distance_cm_measured));
+	adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(adc_data), .raw_distance_cm(distance_cm_raw), .distance_cm_cos45(distance_cm_measured));
 	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_IR)) i_fifo (
 		// ir sensor pid feedback
 		.clk  (clk            ),
@@ -189,11 +205,23 @@ module top (
 		.d     (next_duty_cycle_r),
 		.q     (duty_cycle_r     )
 	);
-	ff #(.D_WIDTH($size(k_p))) i_ff_k (
-		.clk(clk       ),
-		.rst(reset     ),
-		.d  (next_sig_0),
-		.q  (k_p       )
+	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(350)) i_ff_p (
+		.clk(clk     ),
+		.rst(reset   ),
+		.d  (next_k_p),
+		.q  (k_p     )
+	);
+	ff #(.D_WIDTH($size(k_i)), .RESET_VALUE(0)) i_ff_i (
+		.clk(clk     ),
+		.rst(reset   ),
+		.d  (next_k_i),
+		.q  (k_i     )
+	);
+	ff #(.D_WIDTH($size(k_d)), .RESET_VALUE(50)) i_ff_d (
+		.clk(clk     ),
+		.rst(reset   ),
+		.d  (next_k_d),
+		.q  (k_d     )
 	);
 	ff #(.D_WIDTH(1)) i_ff_clken_32hz (
 		.clk(clk             ),
@@ -202,35 +230,35 @@ module top (
 		.q  (prev_clk_en_32hz)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_adder_signed_unsigned_dl (
-		.a_unsigned_in(base_duty_cycle  ),
-		.b_signed_in  (duty_cycle_offset),
-		.sum_out      (next_duty_cycle_r)
+		.a_unsigned_in(base_duty_cycle      ),
+		.b_signed_in  (duty_cycle_offset_adj),
+		.sum_out      (next_duty_cycle_r    )
 	);
 
 	saturating_subtractor_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_sub_signed_unsigned_dr (
-		.a_unsigned_in(base_duty_cycle  ),
-		.b_signed_in  (duty_cycle_offset),
-		.sum_out      (next_duty_cycle_l)
+		.a_unsigned_in(base_duty_cycle      ),
+		.b_signed_in  (duty_cycle_offset_adj),
+		.sum_out      (next_duty_cycle_l    )
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn0 (
 		.a_unsigned_in(sig_0),
-		.b_signed_in  (10   ),
+		.b_signed_in  (50   ),
 		.sum_out      (res_0)
 	);
 
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn1 (
 		.a_unsigned_in(sig_0),
-		.b_signed_in  (100  ),
+		.b_signed_in  (-50  ),
 		.sum_out      (res_1)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn2 (
-		.a_unsigned_in(sig_0),
-		.b_signed_in  (-10  ),
+		.a_unsigned_in(sig_1),
+		.b_signed_in  (10   ),
 		.sum_out      (res_2)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn3 (
-		.a_unsigned_in(sig_0),
-		.b_signed_in  (-100 ),
+		.a_unsigned_in(sig_1),
+		.b_signed_in  (-10  ),
 		.sum_out      (res_3)
 	);
 
@@ -251,14 +279,18 @@ module top (
 			motor_en <= ~motor_en;
 		end
 	end
-	logic [PWM_RESOLUTION-1:0] base_duty_cycle;
-	assign base_duty_cycle      = BASE_DUTY;
-	assign nand_bumper_btns     = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
-	assign distance_cm_setpoint = 30;
-	assign sig_0                = k_p;
-	assign next_sig_0           = btn_debounce[0] ? res_0  : (btn_debounce[1] ? res_1 : (btn_debounce[2] ? res_2 : (btn_debounce[3] ? res_3 : sig_0)));
-	assign fifo_ir_din          = {{26'd0,distance_cm_measured},{26'd0,distance_cm_setpoint}};
-	assign fifo_ir_wr_en        = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en;
-	assign fifo_uart_empty      = fifo_ir_empty;
-	assign fifo_uart_dout       = fifo_ir_dout;
+
+	assign duty_cycle_offset_adj = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
+	assign base_duty_cycle       = BASE_DUTY;
+	assign nand_bumper_btns      = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
+	assign distance_cm_setpoint  = 15;
+	assign sig_0                 = k_p;
+	assign sig_1                 = k_d;
+	assign next_k_p              = btn_debounce[0] ? res_0  : (btn_debounce[1] ? res_1 : sig_0);//350;
+	assign next_k_i              = 0;
+	assign next_k_d              = btn_debounce[2] ? res_2 : (btn_debounce[3] ? res_3 : sig_1);
+	assign fifo_ir_din           = {{25'd0,distance_cm_measured},{25'd0,distance_cm_setpoint}};
+	assign fifo_ir_wr_en         = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en;
+	assign fifo_uart_empty       = fifo_ir_empty;
+	assign fifo_uart_dout        = fifo_ir_dout;
 endmodule

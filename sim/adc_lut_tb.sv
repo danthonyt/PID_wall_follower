@@ -9,7 +9,7 @@ module adc_lut_tb ();
 
 	logic clk;
 	logic reset;
-	logic [15:0] raw_adc_data;
+	logic signed [15:0] raw_adc_data;
 	logic [6:0] distance_cm_out;
 adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(raw_adc_data), .distance_cm_out(distance_cm_out));
 
@@ -20,6 +20,16 @@ adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(raw_adc_data), .dista
 			raw_adc_data <= $random();
 			#(CLK_PERIOD*2);
 		end
+		// max positive vaule
+		raw_adc_data = 16'h7FFF;
+		#(CLK_PERIOD*2);
+		// zero
+		raw_adc_data = 16'h0000;
+		#(CLK_PERIOD*2);
+		// max negative value
+		raw_adc_data = 16'h8000;
+		#(CLK_PERIOD*2);
+
 		$finish;
 	end
 endmodule
