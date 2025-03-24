@@ -25,7 +25,7 @@ module top (
 	parameter PID_WALL_INT_WIDTH    = 16   ;
 	parameter PID_WALL_FRAC_WIDTH   = 0    ;
 	parameter BASE_DUTY             = 16384;
-	parameter MAX_DUTY_CYCLE_OFFSET = 12288;
+	parameter MAX_DUTY_CYCLE_OFFSET = 8192;
 	// tachometer PID parameters
 	parameter FIFO_RD_DATA_WIDTH_IR = 32*2;
 	// I2C
@@ -69,7 +69,7 @@ module top (
 	logic                             fifo_uart_rd_en;
 	logic                             fifo_uart_empty;
 // i2c
-	logic [15:0] adc_data         ;
+	logic signed [15:0] adc_data, adc_data_avg_debug         ;
 	logic        btn_debounce[0:3];
 
 
@@ -92,7 +92,7 @@ module top (
 		.probe1(k_p                 ), // input wire [15:0]  probe1
 		.probe2(k_i                 ), // input wire [15:0]  probe2
 		.probe3(k_d                 ), // input wire [15:0]  probe3
-		.probe4(distance_cm_measured), // input wire [6:0]  probe4
+		.probe4(distance_cm_raw), // input wire [6:0]  probe4
 		.probe5(duty_cycle_offset   ), // input wire [17:0]  probe5
 		.probe6(duty_cycle_l        ), // input wire [16:0]  probe6
 		.probe7(duty_cycle_r        )  // input wire [16:0]  probe7
@@ -141,7 +141,7 @@ module top (
 		.control_out(duty_cycle_offset   )
 	);
 
-	i2c_adc_fsm i_i2c_adc_fsm (.clk(clk), .reset(reset), .scl_pin(scl_pin), .sda_pin(sda_pin), .adc_data(adc_data));
+	i2c_adc_fsm i_i2c_adc_fsm (.clk(clk), .reset(reset), .scl_pin(scl_pin), .sda_pin(sda_pin), .adc_data(adc_data),.adc_data_avg(adc_data_avg_debug));
 
 	adc_lut i_adc_lut (.clk(clk), .reset(reset), .raw_adc_data(adc_data), .raw_distance_cm(distance_cm_raw), .distance_cm_cos45(distance_cm_measured));
 	fifo #(.DEPTH_POW_2(10), .DWIDTH(FIFO_RD_DATA_WIDTH_IR)) i_fifo (
@@ -205,7 +205,7 @@ module top (
 		.d     (next_duty_cycle_r),
 		.q     (duty_cycle_r     )
 	);
-	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(350)) i_ff_p (
+	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(582)) i_ff_p (
 		.clk(clk     ),
 		.rst(reset   ),
 		.d  (next_k_p),
@@ -217,7 +217,7 @@ module top (
 		.d  (next_k_i),
 		.q  (k_i     )
 	);
-	ff #(.D_WIDTH($size(k_d)), .RESET_VALUE(50)) i_ff_d (
+	ff #(.D_WIDTH($size(k_d)), .RESET_VALUE(74)) i_ff_d (
 		.clk(clk     ),
 		.rst(reset   ),
 		.d  (next_k_d),
@@ -283,12 +283,26 @@ module top (
 	assign duty_cycle_offset_adj = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
 	assign base_duty_cycle       = BASE_DUTY;
 	assign nand_bumper_btns      = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
-	assign distance_cm_setpoint  = 15;
+	assign distance_cm_setpoint  = 18;
 	assign sig_0                 = k_p;
 	assign sig_1                 = k_d;
+	// P controller
+	/*
 	assign next_k_p              = btn_debounce[0] ? res_0  : (btn_debounce[1] ? res_1 : sig_0);//350;
 	assign next_k_i              = 0;
-	assign next_k_d              = btn_debounce[2] ? res_2 : (btn_debounce[3] ? res_3 : sig_1);
+	assign next_k_d              = 0;
+	*/
+	// PI controller
+	/*
+	assign next_k_p              = btn_debounce[0] ? res_0  : (btn_debounce[1] ? res_1 : sig_0);
+	assign next_k_i              = btn_debounce[2] ? res_2 : (btn_debounce[3] ? res_3 : sig_1);
+	assign next_k_d              = 0; 
+	*/
+	// PID controller
+	
+	assign next_k_p              = btn_debounce[0] ? res_0  : (btn_debounce[1] ? res_1 : sig_0);
+	assign next_k_i              = 0;
+	assign next_k_d              =  btn_debounce[2] ? res_2 : (btn_debounce[3] ? res_3 : sig_1);//
 	assign fifo_ir_din           = {{25'd0,distance_cm_measured},{25'd0,distance_cm_setpoint}};
 	assign fifo_ir_wr_en         = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en;
 	assign fifo_uart_empty       = fifo_ir_empty;

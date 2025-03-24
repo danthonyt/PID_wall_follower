@@ -3,7 +3,8 @@ module i2c_adc_fsm (
 	input  logic reset  ,
 	inout  logic scl_pin,
 	inout  logic sda_pin,
-	output logic [15:0] adc_data
+	output logic signed [15:0] adc_data,
+	output logic signed [15:0] adc_data_avg
 );
 	logic                   transaction_start         ;
 	logic                   rd_nwr                    ;
@@ -17,6 +18,9 @@ module i2c_adc_fsm (
 	logic [26:0] delay_counter;
 	logic        delay_en     ;
 	logic        error        ;
+	logic signed [19:0] adc_avg_accum;
+	logic signed [19:0] adc_data_avg_long;
+	int i;
 	i2c_master #(.MAX_BYTES_PER_TRANSACTION(3)) i_i2c_master (
 		.clk                  (clk                  ),
 		.reset                (reset                ),
@@ -34,6 +38,7 @@ module i2c_adc_fsm (
 	assign slave_addr = 7'h48;
 	typedef enum logic [3:0] {STATE_CONFIGURE,STATE_SET,STATE_SAMPLE,STATE_WAIT,STATE_30MS_WAIT} states_t;
 	states_t state,next_state;
+	
 
 	// delay counter
 	always_ff @(posedge clk or posedge reset) begin
@@ -52,6 +57,9 @@ module i2c_adc_fsm (
 		if(reset) begin
 			adc_data <= 0;
 			state    <= STATE_CONFIGURE;
+			i <= 0;
+			adc_avg_accum <= 0;
+			adc_data_avg_long <= 0;
 		end else begin
 			transaction_start <= 0;
 			delay_en          <= 0;
@@ -88,6 +96,15 @@ module i2c_adc_fsm (
 
 					if (transaction_done) begin 
 						adc_data <= {dout[0],dout[1]};
+						
+						if (i < 16) begin
+							i <= i + 1;
+							adc_avg_accum <= adc_avg_accum + {dout[0],dout[1]};
+						end else begin
+							i <= 0;
+							adc_data_avg_long <= (adc_avg_accum >>> 4);
+							adc_avg_accum <= 0;
+						end
 					end
 					if(delay_counter >= 3910000-1) begin 	// sample every 31.3 ms
 						state <= next_state;
@@ -97,5 +114,5 @@ module i2c_adc_fsm (
 			endcase
 		end
 	end
-
+	assign adc_data_avg = adc_data_avg_long[15:0];
 endmodule 

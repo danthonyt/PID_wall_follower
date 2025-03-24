@@ -7,7 +7,7 @@ module adc_lut (
 );
 	logic [6:0] raw_distance_cm,adjusted_distance_cm_trunc;
 	logic [6:-8] adjusted_distance_cm,raw_distance_cm_fp;
-	logic  [15:0] lut_distance_cm_threshold_arr[0:69];
+	logic  [15:0] lut_distance_cm_threshold_arr[0:30];
 	logic [6:0] next_distance_cm_out;
 	initial begin
 		$readmemh("adc_lookup.mem", lut_distance_cm_threshold_arr);  // Load HEX file into array
@@ -15,9 +15,9 @@ module adc_lut (
 
 	always_comb begin
 		raw_distance_cm = 10;
-		for (int i = 70; i > 0; i--) begin
+		for (int i = 31; i > 0; i--) begin
 			if ($signed({raw_adc_data[15],raw_adc_data}) < $signed({1'b0,lut_distance_cm_threshold_arr[i-1]})) begin	// distance is found by comparing to expected values for each distance
-				raw_distance_cm = i + 10;	// 10 cm has the highest voltage output and decreases as distance increases
+				raw_distance_cm = (i-1) + 10;	// 10 cm has the highest voltage output and decreases as distance increases
 				break;
 			end;
 		end

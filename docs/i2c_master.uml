@@ -1,6 +1,6 @@
 @startuml
 
-[*] --> STATE_IDLE
+[*] --> STATE_READY
 STATE_IDLE --> STATE_IDLE : else
 STATE_IDLE --> STATE_START : start_wr == 1 or start_en == 1
 STATE_START --> STATE_ADDR_1
@@ -18,5 +18,18 @@ STATE_READ_3 --> STATE_STOP
 
 STATE_STOP --> STATE_IDLE
 STATE_STOP --> STATE_STOP
+
+
+STATE_READY : 
+STATE_START 
+STATE_ADDRESS 
+STATE_CHECK_ACK 
+STATE_NACK 
+STATE_WRITE 
+STATE_READ : begin 	// read from slave device - release sda line
+
+STATE_SEND_ACK : begin
+
+STATE_STOP 
 
 @enduml

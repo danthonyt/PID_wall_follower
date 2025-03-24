@@ -87,7 +87,6 @@ def plot(csv_filename):
 	    print(f'Error plotting data: {e}')
 # Example usage
 # plot('wall_follower_trial_ultimate_gain.csv')
-tune('wall_follower_trial_ultimate_gain.csv',600)
+tune('wall_follower_trial_ultimate_gain.csv',970)
 plot('wall_follower_trial_ultimate_gain.csv')
-plot('wall_follower_trial_pid_controller.csv')
 
