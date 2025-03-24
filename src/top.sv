@@ -205,7 +205,7 @@ module top (
 		.d     (next_duty_cycle_r),
 		.q     (duty_cycle_r     )
 	);
-	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(582)) i_ff_p (
+	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(570)) i_ff_p (
 		.clk(clk     ),
 		.rst(reset   ),
 		.d  (next_k_p),
@@ -217,7 +217,7 @@ module top (
 		.d  (next_k_i),
 		.q  (k_i     )
 	);
-	ff #(.D_WIDTH($size(k_d)), .RESET_VALUE(74)) i_ff_d (
+	ff #(.D_WIDTH($size(k_d)), .RESET_VALUE(0)) i_ff_d (
 		.clk(clk     ),
 		.rst(reset   ),
 		.d  (next_k_d),

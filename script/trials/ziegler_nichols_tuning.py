@@ -88,10 +88,11 @@ def plot(csv_filename):
 # Example usage
 # plot('wall_follower_trial_ultimate_gain.csv')
 tune('wall_follower_trial_ultimate_gain.csv',970)
-#as P increases it is more responsive to the turn but there is more risk of oscillation
-plot('p_controller_370_turn.csv')
+#plot('p_controller_370_turn.csv')
 plot('p_controller_470_turn.csv')
 plot('p_controller_570_turn.csv')
-# as D increases
 #plot('wall_follower_trial_ultimate_gain.csv')
+plot('pd_controller_570_150_turn.csv')
+plot('pd_controller_570_300_turn.csv')
+
 
