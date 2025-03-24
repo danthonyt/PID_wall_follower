@@ -1,16 +1,11 @@
 # Define the voltage-distance equation
 import pandas as pd
 import numpy as np
-
 import csv
 import re
 import time
 import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-
-import pandas as pd
-import numpy as np
+import os
 
 def tune(csv_filename,k_u):
 	try:
@@ -55,43 +50,56 @@ def tune(csv_filename,k_u):
 		print(f'Error finding max frequency: {e}')
 
 def plot(csv_filename):
-	try:
-	    data = pd.read_csv(csv_filename)
-	    plt.figure(figsize=(10, 8))
+    try:
+        # Read the data from the CSV file
+        data = pd.read_csv(csv_filename)
 
-	    # Plot 1: Distance to Wall vs Time
-	    plt.subplot(3, 1, 1)
-	    plt.plot(data['Time (ms)'], data['Wall Distance (cm)'], marker='o', linestyle='-', color='b', label='Distance to Wall')
-	    plt.plot(data['Time (ms)'], data['Setpoint (cm)'], marker='^', linestyle=':', color='g', label='Setpoint')
-	    plt.xlabel('Time (ms)')
-	    plt.ylabel('Distance (cm)')
-	    plt.title('Distance to Wall vs Time')
-	    plt.legend()
-	    plt.grid(True)
+        # Create the plot
+        plt.figure(figsize=(10, 8))
 
-	    # FFT of Wall Distance
-	    plt.subplot(3, 1, 2)
-	    distance_signal = data['Wall Distance (cm)'].values
-	    fft_result = np.fft.fft(distance_signal)
-	    freqs = np.fft.fftfreq(len(distance_signal), d=0.0313)  # Sampling interval (31.3 ms)
-	    plt.plot(freqs[:len(freqs)//2], np.abs(fft_result[:len(fft_result)//2]), color='r', label='FFT Magnitude')
-	    plt.xlabel('Frequency (Hz)')
-	    plt.ylabel('Magnitude')
-	    plt.title('FFT of Wall Distance')
-	    plt.grid(True)
-	    plt.legend()
+        # Plot Distance to Wall vs Time
+        plt.plot(data['Time (ms)'], data['Wall Distance (cm)'], marker='o', linestyle='-', color='b', label='Distance to Wall')
+        plt.plot(data['Time (ms)'], data['Setpoint (cm)'], marker='^', linestyle=':', color='g', label='Setpoint')
+        
+        # Label the axes and title
+        plt.xlabel('Time (ms)')
+        plt.ylabel('Distance (cm)')
+        plt.title('Distance to Wall vs Time')
+        plt.ylim(7, 28)
 
-	    plt.tight_layout()
-	    plt.show()
-	except Exception as e:
-	    print(f'Error plotting data: {e}')
+        
+        # Show legend and grid
+        plt.legend()
+        plt.grid(True)
+
+       # Get the base filename (without extension) from csv_filename
+        base_filename = os.path.splitext(csv_filename)[0]
+        
+        # Save the plot as a PNG file with the same base name as the CSV file
+        output_filename = f"{base_filename}.png"
+        plt.tight_layout()
+        plt.savefig(output_filename, format='png')
+        print(f"Plot saved as {output_filename}")
+        
+    except Exception as e:
+        print(f'Error plotting data: {e}')
+
+# Example usage:
+# plot('your_data.csv', 'output_plot.png')
+
 # Example usage
-# plot('wall_follower_trial_ultimate_gain.csv')
 tune('wall_follower_trial_ultimate_gain.csv',970)
-#plot('p_controller_370_turn.csv')
+plot('pd_controller_582_0_74.csv')
+plot('pi_controller_437_30.csv')
+plot('wall_follower_trial_ultimate_gain.csv')
+# wall follow
+plot('p_controller_470.csv')
+plot('p_controller_470_turn.csv')
+# P controller turn
+plot('p_controller_370_turn.csv')
 plot('p_controller_470_turn.csv')
 plot('p_controller_570_turn.csv')
-#plot('wall_follower_trial_ultimate_gain.csv')
+# PD controller turn
 plot('pd_controller_570_150_turn.csv')
 plot('pd_controller_570_300_turn.csv')
 
