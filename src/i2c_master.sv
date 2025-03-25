@@ -126,11 +126,12 @@ module i2c_master #(parameter MAX_BYTES_PER_TRANSACTION=3) (
 					sda_wr_en <= 1;
 					scl_wr_en <= 0;
 					sda_out   <= 0;
-					delay_en  <= 1;
 					if (delay_counter == LOW_CYCLES/2) begin	// enable scl after min hold time
 						state     <= STATE_ADDRESS;
 						scl_wr_en <= 1;
 						delay_en  <= 0;
+					end else begin
+						delay_en  <= 1;
 					end
 				end
 				STATE_ADDRESS : begin	// send 8 bits of slave address frame {7'b address, 1'b r/nwr} control scl and sda control sda and scl

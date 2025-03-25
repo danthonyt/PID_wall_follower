@@ -1,6 +1,5 @@
 module pid_controller #(
   parameter PID_INT_WIDTH  = 8 ,
-  parameter PID_FRAC_WIDTH = 8 ,
   parameter PV_WIDTH       = 9 ,
   parameter CONTROL_WIDTH  = 16
 ) (
@@ -9,11 +8,11 @@ module pid_controller #(
   input  logic                                            clk_en     ,
   input  logic                                            en         ,
   // proportional parameter
-  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_p        ,
+  input  logic unsigned [PID_INT_WIDTH-1:0] k_p        ,
   // integral parameter
-  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_i        ,
+  input  logic unsigned [PID_INT_WIDTH-1:0] k_i        ,
   // derivative parameter
-  input  logic unsigned [PID_INT_WIDTH-1:-PID_FRAC_WIDTH] k_d        ,
+  input  logic unsigned [PID_INT_WIDTH-1:0] k_d        ,
   // target value
   input  logic unsigned [                   PV_WIDTH-1:0] setpoint   ,
   // actual value from sensor
@@ -25,19 +24,17 @@ module pid_controller #(
 
 
   localparam                                         U_SIZE_INT              = PV_WIDTH+PID_INT_WIDTH-1          ;
-  localparam                                         U_SIZE_FRAC             = PID_FRAC_WIDTH*2                  ;
   localparam                                         CONTROL_RAW_SIZE_INT    = U_SIZE_INT+1                      ;
   localparam signed                                             WIDTH_DIFF              = CONTROL_WIDTH-CONTROL_RAW_SIZE_INT; // difference between control output size and control signal size before truncation
-  logic            signed [           PV_WIDTH:-PID_FRAC_WIDTH] error_fp,prev_error_fp;
-  logic            signed [      PID_INT_WIDTH:-PID_FRAC_WIDTH] k_p_signed,k_i_signed,k_d_signed;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_p,next_u_p;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_i,next_u_i,u_i_sat;
-  logic            signed [          U_SIZE_INT-1:-U_SIZE_FRAC] u_d,next_u_d;
-  logic            signed [CONTROL_RAW_SIZE_INT-1:-U_SIZE_FRAC] control_signal_raw                                          ;
+  logic            signed [           PV_WIDTH:0] prev_error;
+  logic            signed [      PID_INT_WIDTH:0] k_p_signed,k_i_signed,k_d_signed;
+  logic            signed [          U_SIZE_INT-1:0] u_p;
+  logic            signed [          U_SIZE_INT-1:0] u_i_imm,u_i,prev_u_i,u_i_sat;
+  logic            signed [          U_SIZE_INT-1:0] u_d;
+  logic            signed [CONTROL_RAW_SIZE_INT-1:0] control_signal_raw ,next_control_signal_raw                                         ;
   logic            signed [                  CONTROL_WIDTH-1:0] control_signal_adjusted                                     ;
 
   assign error      = $signed({1'd0,setpoint}) - $signed({1'd0,feedback});
-  assign error_fp   = {error,{PID_FRAC_WIDTH{1'b0}}};
   assign k_p_signed = {1'd0,k_p};
   assign k_i_signed = {1'd0,k_i};
   assign k_d_signed = {1'd0,k_d};
@@ -45,42 +42,39 @@ module pid_controller #(
   always_ff @(posedge clk, posedge reset)
     begin
       if (reset) begin
-        u_p                <= 0;
-        u_i                <= 0;
-        u_d                <= 0;
         control_signal_raw <= 0;
-        prev_error_fp      <= 0;
+        prev_u_i <= 0;
+        prev_error      <= 0;
       end else if (~en) begin
-        u_p                <= 0;
-        u_i                <= 0;
-        u_d                <= 0;
         control_signal_raw <= 0;
-        prev_error_fp      <= 0;
+        prev_u_i <= 0;
+        prev_error      <= 0;
       end else if (clk_en) begin
-        u_p                <= next_u_p;
-        u_i                <= next_u_i;
-        u_d                <= next_u_d;
-        control_signal_raw <= next_u_p + next_u_i + next_u_d;
-        prev_error_fp      <= error_fp;
+        control_signal_raw <= next_control_signal_raw;
+        prev_u_i <= u_i;
+        prev_error      <= error;
       end
     end
 
-  assign next_u_p = k_p_signed * error_fp;
+  assign u_p = k_p_signed * error;
+  assign u_d = k_d_signed * (error - prev_error);
+  assign u_i_imm = k_i_signed * error;
+  assign next_control_signal_raw = u_p + u_i + u_d;
 // antiwindup
 // for this case only accumulate integral error when the robot is less than 5 cm away from the setpoint
   always_comb begin
     if ((error < 5) ||(error > -5))
-      next_u_i = u_i_sat;
+      u_i = u_i_sat;
     else
-      next_u_i = 0;
+      u_i = 0;
   end
-  saturating_adder_signed #(.DATA_WIDTH(U_SIZE_INT+U_SIZE_FRAC)) i_saturating_adder_signed (
-    .a_in   (u_i                  ),
-    .b_in   (k_i_signed * error_fp),
+  saturating_adder_signed #(.DATA_WIDTH(U_SIZE_INT)) i_saturating_adder_signed (
+    .a_in   (u_i_imm                  ),
+    .b_in   (prev_u_i),
     .sum_out(u_i_sat              )
   );
 
-  assign next_u_d = k_d_signed * (error_fp - prev_error_fp);
+  
 
   generate
     if (WIDTH_DIFF == 0) begin
