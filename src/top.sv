@@ -19,22 +19,28 @@ module top (
 );
 
 // signal
-	parameter PWM_RESOLUTION  = 17;
-	parameter ADC_RESOLUTION  = 16;
-	parameter DIST_RESOLUTION = 7 ;
+	localparam PWM_RESOLUTION  = 17;
+	localparam ADC_RESOLUTION  = 16;
+	localparam DIST_RESOLUTION = 7 ;
 	// wall follower PID parameters
-	parameter PID_WALL_INT_WIDTH    = 16   ;
-	parameter BASE_DUTY             = 16384;
-	parameter MAX_DUTY_CYCLE_OFFSET = 8250 ;
+	localparam PID_INT_WIDTH           = 16                ;
+	localparam PV_WIDTH                = DIST_RESOLUTION   ;
+	localparam DUTY_CYCLE_OFFSET_WIDTH = PWM_RESOLUTION + 1;
+	localparam BASE_DUTY               = 32768             ;
+	localparam MAX_DUTY_CYCLE_OFFSET   = 16384             ;
 	// tachometer PID parameters
-	parameter FIFO_RD_DATA_WIDTH_IR = 32*4;
+	localparam FIFO_RD_DATA_WIDTH_IR = 32*7;
 	// I2C
-	parameter MAX_BYTES_PER_TRANSACTION = 3;
+	localparam MAX_BYTES_PER_TRANSACTION = 3;
 	// PID initial values
-	parameter INITIAL_PROPORTIONAL = 500;
-	parameter INITIAL_INTEGRAL     = 0  ;
-	parameter INITIAL_DERIVATIVE   = 0  ;
-
+	localparam INITIAL_PROPORTIONAL = 100;
+	localparam INITIAL_INTEGRAL     = 700  ;
+	localparam INITIAL_DERIVATIVE   = 700  ;
+	// PID debugging
+	localparam ERROR_WIDTH        = DIST_RESOLUTION + 1          ;
+	localparam PROPORTIONAL_WIDTH = PID_INT_WIDTH + ERROR_WIDTH  ;
+	localparam INTEGRAL_WIDTH     = PID_INT_WIDTH + ERROR_WIDTH  ;
+	localparam DERIVATIVE_WIDTH   = PID_INT_WIDTH + ERROR_WIDTH+1;
 
 
 //*********************************************************************************//
@@ -48,16 +54,20 @@ module top (
 	logic unsigned [PWM_RESOLUTION-1:0] duty_cycle_r,next_duty_cycle_r;
 	// tachometer
 // PID controller
-	logic signed [  PWM_RESOLUTION:0] duty_cycle_offset    ;
-	logic        [PWM_RESOLUTION-1:0] base_duty_cycle      ;
-	logic signed [  PWM_RESOLUTION:0] duty_cycle_offset_adj;
+	logic signed [DUTY_CYCLE_OFFSET_WIDTH-1:0] duty_cycle_offset    ;
+	logic        [         PWM_RESOLUTION-1:0] base_duty_cycle      ;
+	logic signed [DUTY_CYCLE_OFFSET_WIDTH-1:0] duty_cycle_offset_adj;
 	// Wall follower PID
-	logic unsigned [PID_WALL_INT_WIDTH-1:0] k_p                   ;
-	logic unsigned [PID_WALL_INT_WIDTH-1:0] k_i                   ;
-	logic unsigned [PID_WALL_INT_WIDTH-1:0] k_d                   ;
+	logic unsigned [     PID_INT_WIDTH-1:0] k_p                   ;
+	logic unsigned [     PID_INT_WIDTH-1:0] k_i                   ;
+	logic unsigned [     PID_INT_WIDTH-1:0] k_d                   ;
 	logic unsigned [   DIST_RESOLUTION-1:0] distance_diag_setpoint;
 	logic unsigned [   DIST_RESOLUTION-1:0] distance_diag         ;
-	logic signed   [     DIST_RESOLUTION:0] distance_error        ;
+	logic signed   [       ERROR_WIDTH-1:0] distance_error        ;
+	logic signed   [PROPORTIONAL_WIDTH-1:0] p_term                ;
+	logic signed   [    INTEGRAL_WIDTH-1:0] i_term                ;
+	logic signed   [  DERIVATIVE_WIDTH-1:0] d_term                ;
+
 // FIFO signals
 
 	// ir distance sensor data
@@ -78,9 +88,9 @@ module top (
 	logic               btn_debounce [0:3];
 
 
-	logic [PID_WALL_INT_WIDTH-1:0] sig_0,sig_1,
+	logic [PID_INT_WIDTH-1:0] sig_0,sig_1,
 		next_k_p,next_k_i,next_k_d;
-	logic [PID_WALL_INT_WIDTH-1:0] incr_sig_0,decr_sig_0,incr_sig_1,decr_sig_1;
+	logic [PID_INT_WIDTH-1:0] incr_sig_0,decr_sig_0,incr_sig_1,decr_sig_1;
 
 	logic nand_bumper_btns          ;
 	logic nand_bumper_btns_debounced;
@@ -125,9 +135,9 @@ module top (
 
 
 	pid_controller #(
-		.PID_INT_WIDTH(PID_WALL_INT_WIDTH),
-		.PV_WIDTH     (DIST_RESOLUTION   ),
-		.CONTROL_WIDTH(PWM_RESOLUTION+1  )
+		.PID_INT_WIDTH(PID_INT_WIDTH          ),
+		.PV_WIDTH     (DIST_RESOLUTION        ),
+		.CONTROL_WIDTH(DUTY_CYCLE_OFFSET_WIDTH)
 	) i_pid_controller (
 		.clk        (clk                   ),
 		.reset      (reset                 ),
@@ -138,8 +148,11 @@ module top (
 		.k_d        (k_d                   ),
 		.setpoint   (distance_diag_setpoint),
 		.feedback   (distance_diag         ),
+		.control_out(duty_cycle_offset     ),
 		.error      (distance_error        ),
-		.control_out(duty_cycle_offset     )
+		.u_p        (p_term),
+		.u_i        (i_term),
+		.u_d        (d_term)
 	);
 
 	i2c_adc_fsm i_i2c_adc_fsm (
@@ -218,6 +231,11 @@ module top (
 		.d     (next_duty_cycle_r),
 		.q     (duty_cycle_r     )
 	);
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_adder_signed_unsigned_dr (
+		.a_unsigned_in(base_duty_cycle      ),
+		.b_signed_in  (duty_cycle_offset_adj),
+		.sum_out      (next_duty_cycle_r    )
+	);
 	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(INITIAL_PROPORTIONAL)) i_ff_p (
 		.clk(clk     ),
 		.rst(reset   ),
@@ -243,11 +261,7 @@ module top (
 		.q  (prev_clk_en_32hz)
 	);
 	// push buttons to increment or decrement PID parameters
-	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_adder_signed_unsigned_dl (
-		.a_unsigned_in(base_duty_cycle      ),
-		.b_signed_in  (duty_cycle_offset_adj),
-		.sum_out      (next_duty_cycle_r    )
-	);
+
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn0 (
 		.a_unsigned_in(sig_0     ),
 		.b_signed_in  (20        ),
@@ -281,6 +295,7 @@ module top (
 // SIGNAL ASSIGNMENTS
 //*********************************************************************************//
 	// motor enable
+	assign nand_bumper_btns       = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
 	always_ff @(posedge clk or posedge reset) begin
 		if(reset)
 			motor_en <= 0;
@@ -288,17 +303,24 @@ module top (
 			motor_en <= 0;
 		else if(nand_bumper_btns_debounced)
 			motor_en <= ~motor_en;
-
 	end
-	assign sig_0                 = k_p;
-	assign sig_1                 = k_d;
-	assign base_duty_cycle       = BASE_DUTY;
-	assign next_duty_cycle_l     = BASE_DUTY;
-	assign duty_cycle_offset_adj = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
+	assign sig_0                  = k_p;
+	assign sig_1                  = k_d;
+	assign base_duty_cycle        = BASE_DUTY;
+	assign next_duty_cycle_l      = BASE_DUTY;
+	assign duty_cycle_offset_adj  = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
+	assign distance_diag_setpoint = 30;
+	
 
-	assign nand_bumper_btns = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
-
-	assign fifo_ir_din     = {{25'd0,distance_diag},{25'd0,distance_diag_setpoint},{{24{distance_error[DIST_RESOLUTION]}},distance_error},{{6{duty_cycle_offset_adj[PWM_RESOLUTION]}},duty_cycle_offset_adj}};
+	assign fifo_ir_din = {
+		{{(32-DIST_RESOLUTION){1'b0}},distance_diag},
+		{{(32-DIST_RESOLUTION){1'b0}},distance_diag_setpoint},
+		{{(32-ERROR_WIDTH){distance_error[ERROR_WIDTH-1]}},distance_error},
+		{{(32-PROPORTIONAL_WIDTH){distance_error[PROPORTIONAL_WIDTH-1]}},p_term},
+		{{(32-INTEGRAL_WIDTH){distance_error[INTEGRAL_WIDTH-1]}},i_term},
+		{{(32-DERIVATIVE_WIDTH){distance_error[DERIVATIVE_WIDTH-1]}},d_term},
+		{{(32-DUTY_CYCLE_OFFSET_WIDTH){duty_cycle_offset_adj[PWM_RESOLUTION]}},duty_cycle_offset_adj}
+	};
 	assign fifo_ir_wr_en   = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en;
 	assign fifo_uart_empty = fifo_ir_empty;
 	assign fifo_uart_dout  = fifo_ir_dout;
@@ -309,9 +331,9 @@ module top (
 	// sharp turns
 	// wave object in front of sensor quickly
 
-	assign next_k_p = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : decr_sig_0);
-	assign next_k_i = 0;
-	assign next_k_d = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : decr_sig_1);
+	assign next_k_p = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : sig_0);
+	assign next_k_i = k_i;
+	assign next_k_d = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : sig_1);
 
 
 endmodule
