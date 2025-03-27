@@ -38,7 +38,7 @@ module pid_controller #(
   logic signed [CONTROL_RAW_SIZE_INT-1:0] control_signal_raw,next_control_signal_raw;
   logic signed [       CONTROL_WIDTH-1:0] control_signal_adjusted;
 
-  assign error      = setpoint - feedback;
+
   assign k_p_signed = {1'd0,k_p};
   assign k_i_signed = {1'd0,k_i};
   assign k_d_signed = {1'd0,k_d};
@@ -46,28 +46,31 @@ module pid_controller #(
   always_ff @(posedge clk, posedge reset)
     begin
       if (reset) begin
-        control_signal_raw <= 0;
+        
         prev_u_i           <= 0;
         prev_error         <= 0;
+        error      <= 0;
       end else if (~en) begin
-        control_signal_raw <= 0;
+       
         prev_u_i           <= 0;
         prev_error         <= 0;
+        error      <= 0;
       end else if (clk_en) begin
-        control_signal_raw <= next_control_signal_raw;
-        prev_u_i           <= u_i;
+        
+        prev_u_i           <= ((error > -10) && (error < 10)) ? u_i : 0;
         prev_error         <= error;
+        error      <= setpoint - feedback;
       end
     end
 
   assign u_p                     = k_p_signed * error;
   assign u_d                     = k_d_signed * (error - prev_error);
   assign u_i_imm                 = k_i_signed * error;
-  assign next_control_signal_raw = u_p + u_i + u_d;
+  assign control_signal_raw = u_p + u_i + u_d;
 // antiwindup
 // for this case only accumulate integral error when the robot is less than 5 cm away from the setpoint
   always_comb begin
-    if ((error > -5) && (error < 5) )
+    if ((error > -10) && (error < 10))
       u_i = u_i_sat;
     else
       u_i = 0;

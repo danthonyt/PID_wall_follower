@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 from ziegler_nichols_tuning import plot
 
 def hex_to_signed_int(hex_str):
@@ -14,7 +15,8 @@ def hex_to_signed_int(hex_str):
     return value
 
 # Open the serial port
-ser = serial.Serial('/dev/ttyUSB0', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=3)
+#ser = serial.Serial('/dev/ttyUSB0', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=3)
+ser = serial.Serial('COM4', baudrate=115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=3)
 ser.reset_input_buffer()
 
 # Open CSV file for writing
@@ -75,4 +77,5 @@ finally:
     time.sleep(0.5)
 
 # Plotting the data after collection
-plot('wall_follower_trial.csv')
+directory = os.getcwd()  # Get the current working directory
+plot('wall_follower_trial.csv',directory)

@@ -38,15 +38,15 @@ def tune(csv_filename, k_u):
 	except Exception as e:
 	    print(f'Error finding max frequency: {e}')
 
-def plot(csv_filename):
+def plot(csv_filename,output_dir):
 	try:
 		# Read data from CSV
 		data = pd.read_csv(csv_filename)
 
-		# Create a figure with 4 subplots (1 row for distance/setpoint, 3 rows for PID terms)
+		# Create a figure with 4 subplots
 		plt.figure(figsize=(10, 12))
 
-		# Distance vs Time (subplot 1)
+		# Distance vs Time
 		plt.subplot(4, 1, 1)
 		plt.plot(data['Time (ms)'], data['Wall Distance (cm)'], marker='o', linestyle='-', color='b', label='Wall Distance')
 		plt.plot(data['Time (ms)'], data['Setpoint (cm)'], marker='^', linestyle=':', color='g', label='Setpoint')
@@ -56,7 +56,7 @@ def plot(csv_filename):
 		plt.legend()
 		plt.grid(True)
 
-		# Proportional Term vs Time (subplot 2)
+		# Proportional Term vs Time
 		plt.subplot(4, 1, 2)
 		plt.plot(data['Time (ms)'], data['Proportional Term'], marker='o', linestyle='-', color='orange', label='Proportional Term')
 		plt.xlabel('Time (ms)')
@@ -65,7 +65,7 @@ def plot(csv_filename):
 		plt.legend()
 		plt.grid(True)
 
-		# Integral Term vs Time (subplot 3)
+		# Integral Term vs Time
 		plt.subplot(4, 1, 3)
 		plt.plot(data['Time (ms)'], data['Integral Term'], marker='^', linestyle='-', color='blue', label='Integral Term')
 		plt.xlabel('Time (ms)')
@@ -74,7 +74,7 @@ def plot(csv_filename):
 		plt.legend()
 		plt.grid(True)
 
-		# Derivative Term vs Time (subplot 4)
+		# Derivative Term vs Time
 		plt.subplot(4, 1, 4)
 		plt.plot(data['Time (ms)'], data['Derivative Term'], marker='x', linestyle='-', color='green', label='Derivative Term')
 		plt.xlabel('Time (ms)')
@@ -85,25 +85,32 @@ def plot(csv_filename):
 
 		# Adjust layout to prevent overlap
 		plt.tight_layout()
-		# Display the plot
-		plt.show()
 
+		# Generate output file path
+		filename = os.path.splitext(os.path.basename(csv_filename))[0]  # Get filename without extension
+		output_path = os.path.join(output_dir, f"{filename}.png")
+
+		# Save plot as PNG
+		plt.savefig(output_path)
+		plt.close()  # Close the figure to prevent memory leaks
+
+		print(f"Saved plot: {output_path}")
 	except Exception as e:
 	    print(f'Error plotting data: {e}')
 
 
 def plot_all_csv(directory):
     csv_files = [f for f in os.listdir(directory) if f.endswith('.csv')]
-    
+
     if not csv_files:
         print("No CSV files found in the directory.")
         return
-    
+
     for csv_file in csv_files:
         print(f"Processing: {csv_file}")
-        plot(os.path.join(directory, csv_file))
+        plot(os.path.join(directory, csv_file),directory)
 
 # Example usage
-#directory = os.getcwd()  # Get the current working directory
-#plot_all_csv(directory)
-#tune('ultimate_gain_trial_1700.csv',1700)
+directory = os.getcwd()  # Get the current working directory
+#plot_all_csv(os.path.join(directory,"trials"))
+#tune(os.path.join(directory,"trials", "ultimate_gain_trial_1600.csv"), 1600)

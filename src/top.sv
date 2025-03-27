@@ -33,9 +33,9 @@ module top (
 	// I2C
 	localparam MAX_BYTES_PER_TRANSACTION = 3;
 	// PID initial values
-	localparam INITIAL_PROPORTIONAL = 100;
-	localparam INITIAL_INTEGRAL     = 700  ;
-	localparam INITIAL_DERIVATIVE   = 700  ;
+	localparam INITIAL_PROPORTIONAL = 960;
+	localparam INITIAL_INTEGRAL     = 0  ;
+	localparam INITIAL_DERIVATIVE   = 107  ;
 	// PID debugging
 	localparam ERROR_WIDTH        = DIST_RESOLUTION + 1          ;
 	localparam PROPORTIONAL_WIDTH = PID_INT_WIDTH + ERROR_WIDTH  ;
@@ -89,7 +89,8 @@ module top (
 
 
 	logic [PID_INT_WIDTH-1:0] sig_0,sig_1,
-		next_k_p,next_k_i,next_k_d;
+		next_k_p,next_k_i,next_k_d,
+		modify_sig1,modiy_sig0;
 	logic [PID_INT_WIDTH-1:0] incr_sig_0,decr_sig_0,incr_sig_1,decr_sig_1;
 
 	logic nand_bumper_btns          ;
@@ -236,6 +237,11 @@ module top (
 		.b_signed_in  (duty_cycle_offset_adj),
 		.sum_out      (next_duty_cycle_r    )
 	);
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_adder_signed_unsigned_dl (
+		.a_unsigned_in(base_duty_cycle      ),
+		.b_signed_in  (-duty_cycle_offset_adj),
+		.sum_out      (next_duty_cycle_l    )
+	);
 	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(INITIAL_PROPORTIONAL)) i_ff_p (
 		.clk(clk     ),
 		.rst(reset   ),
@@ -264,13 +270,13 @@ module top (
 
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn0 (
 		.a_unsigned_in(sig_0     ),
-		.b_signed_in  (20        ),
+		.b_signed_in  (10        ),
 		.sum_out      (incr_sig_0)
 	);
 
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn1 (
 		.a_unsigned_in(sig_0     ),
-		.b_signed_in  (-20       ),
+		.b_signed_in  (-10       ),
 		.sum_out      (decr_sig_0)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_1))) i_add_btn2 (
@@ -304,10 +310,8 @@ module top (
 		else if(nand_bumper_btns_debounced)
 			motor_en <= ~motor_en;
 	end
-	assign sig_0                  = k_p;
-	assign sig_1                  = k_d;
+	
 	assign base_duty_cycle        = BASE_DUTY;
-	assign next_duty_cycle_l      = BASE_DUTY;
 	assign duty_cycle_offset_adj  = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
 	assign distance_diag_setpoint = 30;
 	
@@ -316,9 +320,9 @@ module top (
 		{{(32-DIST_RESOLUTION){1'b0}},distance_diag},
 		{{(32-DIST_RESOLUTION){1'b0}},distance_diag_setpoint},
 		{{(32-ERROR_WIDTH){distance_error[ERROR_WIDTH-1]}},distance_error},
-		{{(32-PROPORTIONAL_WIDTH){distance_error[PROPORTIONAL_WIDTH-1]}},p_term},
-		{{(32-INTEGRAL_WIDTH){distance_error[INTEGRAL_WIDTH-1]}},i_term},
-		{{(32-DERIVATIVE_WIDTH){distance_error[DERIVATIVE_WIDTH-1]}},d_term},
+		{{(32-PROPORTIONAL_WIDTH){p_term[PROPORTIONAL_WIDTH-1]}},p_term},
+		{{(32-INTEGRAL_WIDTH){i_term[INTEGRAL_WIDTH-1]}},i_term},
+		{{(32-DERIVATIVE_WIDTH){d_term[DERIVATIVE_WIDTH-1]}},d_term},
 		{{(32-DUTY_CYCLE_OFFSET_WIDTH){duty_cycle_offset_adj[PWM_RESOLUTION]}},duty_cycle_offset_adj}
 	};
 	assign fifo_ir_wr_en   = prev_clk_en_32hz & ~clk_en_32hz & ~fifo_ir_full & motor_en;
@@ -330,10 +334,13 @@ module top (
 	// curved wall
 	// sharp turns
 	// wave object in front of sensor quickly
-
-	assign next_k_p = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : sig_0);
+	assign sig_0                  = k_p;
+	assign sig_1                  = k_d;
+	assign modiy_sig0 = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : sig_0);
+	assign modify_sig1 = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : sig_1);
+	assign next_k_p = modiy_sig0;
 	assign next_k_i = k_i;
-	assign next_k_d = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : sig_1);
+	assign next_k_d = modify_sig1;
 
 
 endmodule
