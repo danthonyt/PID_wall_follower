@@ -53,6 +53,7 @@ def plot(csv_filename,output_dir):
 		plt.xlabel('Time (ms)')
 		plt.ylabel('Distance (cm)')
 		plt.title('Wall Distance vs Setpoint')
+		plt.ylim(10,80)
 		plt.legend()
 		plt.grid(True)
 
@@ -89,6 +90,37 @@ def plot(csv_filename,output_dir):
 		# Generate output file path
 		filename = os.path.splitext(os.path.basename(csv_filename))[0]  # Get filename without extension
 		output_path = os.path.join(output_dir, f"{filename}.png")
+		
+
+		# Save plot as PNG
+		plt.savefig(output_path)
+		plt.close()  # Close the figure to prevent memory leaks
+
+		print(f"Saved plot: {output_path}")
+
+		# Read data from CSV
+		data = pd.read_csv(csv_filename)
+
+		# Create a figure with 4 subplots
+		plt.figure(figsize=(6, 6))
+
+		# Distance vs Time
+		plt.plot(data['Time (ms)'], data['Wall Distance (cm)'], marker='o', linestyle='-', color='b', label='Wall Distance')
+		plt.plot(data['Time (ms)'], data['Setpoint (cm)'], marker='^', linestyle=':', color='g', label='Setpoint')
+		plt.xlabel('Time (ms)')
+		plt.ylabel('Distance (cm)')
+		plt.ylim(10,80)
+		plt.title('Wall Distance vs Setpoint')
+		plt.legend()
+		plt.grid(True)
+
+		# Adjust layout to prevent overlap
+		plt.tight_layout()
+
+		# Generate output file path
+		filename = os.path.splitext(os.path.basename(csv_filename))[0]  # Get filename without extension
+		output_path = os.path.join(output_dir, f"{filename}single.png")
+		
 
 		# Save plot as PNG
 		plt.savefig(output_path)
@@ -109,8 +141,3 @@ def plot_all_csv(directory):
     for csv_file in csv_files:
         print(f"Processing: {csv_file}")
         plot(os.path.join(directory, csv_file),directory)
-
-# Example usage
-directory = os.getcwd()  # Get the current working directory
-plot_all_csv(os.path.join(directory,"trials"))
-#tune(os.path.join(directory,"trials", "ultimate_gain_trial_1600.csv"), 1600)

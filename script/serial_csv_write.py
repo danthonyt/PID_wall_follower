@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
-from ziegler_nichols_tuning import plot
+from pid_data_defs import plot
 
 def hex_to_signed_int(hex_str):
     value = int(hex_str, 16)

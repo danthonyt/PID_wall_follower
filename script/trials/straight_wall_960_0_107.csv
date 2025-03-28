@@ -1,5 +1,4 @@
 Wall Distance (cm),Setpoint (cm),Error (cm),Duty Cycle Offset,Proportional Term,Integral Term,Derivative Term,Time (ms)
-0,0,0,0,0,0,0,31.3
 39,30,-9,-9603,-8640,0,-963,62.6
 39,30,-9,-8640,-8640,0,0,93.9
 39,30,-9,-8640,-8640,0,0,125.2
