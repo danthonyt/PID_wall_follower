@@ -31,11 +31,21 @@ initial begin
 end
 // divisor of 18 is approx 100 hz with R = 16
 initial begin
-  duty = 128;
+  duty = 16384;
   dvsr = 18; // approx 100 Hz about 100.6 Hz
   reset = 1;
   #(CLK_PERIOD*3) reset = 0;
-  #(10ms) 
+  #(100ms) 
+  duty = 32768;
+  dvsr = 18; // approx 100 Hz about 100.6 Hz
+  reset = 1;
+  #(CLK_PERIOD*3) reset = 0;
+  #(100ms) 
+  duty = 49152;
+  dvsr = 18; // approx 100 Hz about 100.6 Hz
+  reset = 1;
+  #(CLK_PERIOD*3) reset = 0;
+  #(100ms) 
   $finish;
 end
 endmodule

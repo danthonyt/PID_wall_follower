@@ -115,7 +115,7 @@ initial begin
 		#CLK_PERIOD reset = 0;
 
 		i2c_write(.num_bytes(3),.device_address(7'h48),.transaction_msg({8'h01, 8'h42,8'hA3}));
-		i2c_write(.num_bytes(1),.device_address(7'h48),.transaction_msg({8'h01,08'd0,8'd0}));
+		i2c_write(.num_bytes(1),.device_address(7'h48),.transaction_msg({8'h96,08'd0,8'd0}));
 		i2c_read(.num_bytes(2),.device_address(7'h48),.expected_read_msg({8'hA0,8'h29,8'd0}));
 
 		$finish;

@@ -112,5 +112,5 @@ def plot_all_csv(directory):
 
 # Example usage
 directory = os.getcwd()  # Get the current working directory
-#plot_all_csv(os.path.join(directory,"trials"))
+plot_all_csv(os.path.join(directory,"trials"))
 #tune(os.path.join(directory,"trials", "ultimate_gain_trial_1600.csv"), 1600)
