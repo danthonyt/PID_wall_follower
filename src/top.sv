@@ -34,8 +34,8 @@ module top (
 	localparam MAX_BYTES_PER_TRANSACTION = 3;
 	// PID initial values
 	localparam INITIAL_PROPORTIONAL = 0;
-	localparam INITIAL_INTEGRAL     = 0  ;
-	localparam INITIAL_DERIVATIVE   = 0  ;
+	localparam INITIAL_INTEGRAL     = 0;
+	localparam INITIAL_DERIVATIVE   = 0;
 	// PID debugging
 	localparam ERROR_WIDTH        = DIST_RESOLUTION + 1          ;
 	localparam PROPORTIONAL_WIDTH = PID_INT_WIDTH + ERROR_WIDTH  ;
@@ -88,9 +88,7 @@ module top (
 	logic               btn_debounce [0:3];
 
 
-	logic [PID_INT_WIDTH-1:0] sig_0,sig_1,
-		next_k_p,next_k_i,next_k_d,
-		modify_sig1,modiy_sig0;
+	logic [PID_INT_WIDTH-1:0] next_k_p,next_k_i,next_k_d;
 	logic [PID_INT_WIDTH-1:0] incr_sig_0,decr_sig_0,incr_sig_1,decr_sig_1;
 
 	logic nand_bumper_btns          ;
@@ -100,17 +98,19 @@ module top (
 //*********************************************************************************//
 //	MODULE INSTANTIATIONS
 //*********************************************************************************//
+	/*
 	ila_0 pid_data (
-		.clk   (clk              ), // input wire clk
-		
-		
-		.probe0(adc_data_diag    ), // input wire [15:0]  probe0
-		.probe1(adc_data_diag_avg), // input wire [15:0]  probe1
-		.probe2(k_p              ), // input wire [15:0]  probe2
-		.probe3(k_i              ), // input wire [15:0]  probe3
-		.probe4(k_d              ), // input wire [15:0]  probe4
-		.probe5(distance_diag    )  // input wire [6:0]  probe5
+	.clk   (clk              ), // input wire clk
+
+
+	.probe0(adc_data_diag    ), // input wire [15:0]  probe0
+	.probe1(adc_data_diag_avg), // input wire [15:0]  probe1
+	.probe2(k_p              ), // input wire [15:0]  probe2
+	.probe3(k_i              ), // input wire [15:0]  probe3
+	.probe4(k_d              ), // input wire [15:0]  probe4
+	.probe5(distance_diag    )  // input wire [6:0]  probe5
 	);
+	*/
 	clk_enable #(.DIVISOR(3910000-1)) i_clk_enable_32hz (
 		.clk_in  (clk        ),
 		.reset_in(reset      ),
@@ -151,9 +151,9 @@ module top (
 		.feedback   (distance_diag         ),
 		.control_out(duty_cycle_offset     ),
 		.error      (distance_error        ),
-		.u_p        (p_term),
-		.u_i        (i_term),
-		.u_d        (d_term)
+		.u_p        (p_term                ),
+		.u_i        (i_term                ),
+		.u_d        (d_term                )
 	);
 
 	i2c_adc_fsm i_i2c_adc_fsm (
@@ -238,9 +238,9 @@ module top (
 		.sum_out      (next_duty_cycle_r    )
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH(PWM_RESOLUTION)) i_saturating_adder_signed_unsigned_dl (
-		.a_unsigned_in(base_duty_cycle      ),
+		.a_unsigned_in(base_duty_cycle       ),
 		.b_signed_in  (-duty_cycle_offset_adj),
-		.sum_out      (next_duty_cycle_l    )
+		.sum_out      (next_duty_cycle_l     )
 	);
 	ff #(.D_WIDTH($size(k_p)), .RESET_VALUE(INITIAL_PROPORTIONAL)) i_ff_p (
 		.clk(clk     ),
@@ -268,24 +268,24 @@ module top (
 	);
 	// push buttons to increment or decrement PID parameters
 
-	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn0 (
-		.a_unsigned_in(sig_0     ),
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(k_p))) i_add_btn0 (
+		.a_unsigned_in(k_p       ),
 		.b_signed_in  (50        ),
 		.sum_out      (incr_sig_0)
 	);
 
-	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn1 (
-		.a_unsigned_in(sig_0     ),
-		.b_signed_in  (-50       ),
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(k_p))) i_add_btn1 (
+		.a_unsigned_in(k_p       ),
+		.b_signed_in  (50        ),
 		.sum_out      (decr_sig_0)
 	);
-	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_1))) i_add_btn2 (
-		.a_unsigned_in(sig_1     ),
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(k_d))) i_add_btn2 (
+		.a_unsigned_in(k_d       ),
 		.b_signed_in  (50        ),
 		.sum_out      (incr_sig_1)
 	);
-	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_1))) i_add_btn3 (
-		.a_unsigned_in(sig_1     ),
+	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(k_d))) i_add_btn3 (
+		.a_unsigned_in(k_d       ),
 		.b_signed_in  (-50       ),
 		.sum_out      (decr_sig_1)
 	);
@@ -297,11 +297,12 @@ module top (
 		.pb_out(nand_bumper_btns_debounced)
 	);
 
+
 //*********************************************************************************//
 // SIGNAL ASSIGNMENTS
 //*********************************************************************************//
 	// motor enable
-	assign nand_bumper_btns       = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
+	assign nand_bumper_btns = ~(&bumper_btn); // convert to positive logic for connecting to debounce module
 	always_ff @(posedge clk or posedge reset) begin
 		if(reset)
 			motor_en <= 0;
@@ -310,11 +311,11 @@ module top (
 		else if(nand_bumper_btns_debounced)
 			motor_en <= ~motor_en;
 	end
-	
+
 	assign base_duty_cycle        = BASE_DUTY;
 	assign duty_cycle_offset_adj  = (duty_cycle_offset > MAX_DUTY_CYCLE_OFFSET) ? MAX_DUTY_CYCLE_OFFSET : (duty_cycle_offset < -MAX_DUTY_CYCLE_OFFSET) ? -MAX_DUTY_CYCLE_OFFSET : duty_cycle_offset;
 	assign distance_diag_setpoint = 30;
-	
+
 
 	assign fifo_ir_din = {
 		{{(32-DIST_RESOLUTION){1'b0}},distance_diag},
@@ -330,17 +331,9 @@ module top (
 	assign fifo_uart_dout  = fifo_ir_dout;
 
 	// PARAMETER CONTROL
-	// straight wall
-	// curved wall
-	// sharp turns
-	// wave object in front of sensor quickly
-	assign sig_0                  = k_p;
-	assign sig_1                  = k_d;
-	assign modiy_sig0 = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : sig_0);
-	assign modify_sig1 = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : sig_1);
-	assign next_k_p = modiy_sig0;
-	assign next_k_i = k_i;
-	assign next_k_d = modify_sig1;
+	assign next_k_p  = btn_debounce[0] ? incr_sig_0  : (btn_debounce[1] ? decr_sig_0 : k_p);
+	assign next_k_d = btn_debounce[2] ? incr_sig_1 : (btn_debounce[3] ? decr_sig_1 : k_d);
+	assign next_k_i    = 0;
 
 
 endmodule
