@@ -16,7 +16,6 @@ module saturating_adder_unsigned_signed_tb ();
 		.sum_out      (sum_out      )
 	);
 
-// divisor of 18 is approx 100 hz with R = 16
 	initial begin
 		repeat(100)begin
 			a_unsigned_in = $random();
