@@ -70,7 +70,7 @@ module pid_controller #(
 // antiwindup
 // for this case only accumulate integral error when the robot is less than 5 cm away from the setpoint
   always_comb begin
-    if ((error > -10) && (error < 10))
+    if ((error > -5) && (error < 5))
       u_i = u_i_sat;
     else
       u_i = 0;

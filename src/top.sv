@@ -33,9 +33,9 @@ module top (
 	// I2C
 	localparam MAX_BYTES_PER_TRANSACTION = 3;
 	// PID initial values
-	localparam INITIAL_PROPORTIONAL = 960;
+	localparam INITIAL_PROPORTIONAL = 0;
 	localparam INITIAL_INTEGRAL     = 0  ;
-	localparam INITIAL_DERIVATIVE   = 107  ;
+	localparam INITIAL_DERIVATIVE   = 0  ;
 	// PID debugging
 	localparam ERROR_WIDTH        = DIST_RESOLUTION + 1          ;
 	localparam PROPORTIONAL_WIDTH = PID_INT_WIDTH + ERROR_WIDTH  ;
@@ -270,23 +270,23 @@ module top (
 
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn0 (
 		.a_unsigned_in(sig_0     ),
-		.b_signed_in  (10        ),
+		.b_signed_in  (50        ),
 		.sum_out      (incr_sig_0)
 	);
 
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_0))) i_add_btn1 (
 		.a_unsigned_in(sig_0     ),
-		.b_signed_in  (-10       ),
+		.b_signed_in  (-50       ),
 		.sum_out      (decr_sig_0)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_1))) i_add_btn2 (
 		.a_unsigned_in(sig_1     ),
-		.b_signed_in  (10        ),
+		.b_signed_in  (50        ),
 		.sum_out      (incr_sig_1)
 	);
 	saturating_adder_signed_unsigned #(.UNSIGNED_WIDTH($size(sig_1))) i_add_btn3 (
 		.a_unsigned_in(sig_1     ),
-		.b_signed_in  (-10       ),
+		.b_signed_in  (-50       ),
 		.sum_out      (decr_sig_1)
 	);
 
